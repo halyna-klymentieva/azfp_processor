@@ -1,0 +1,9 @@
+v1.8 20220819
+- remove input parser and used isfield on Parameter variable instead
+- add xmlpathname variable
+
+v1.7 20210811
+- user pressure channel (if avail) to shift ranges
+
+v1.6 20200904
+- reading of uls6 format data files
