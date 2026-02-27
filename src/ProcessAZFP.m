@@ -39,6 +39,7 @@ Output = [];
 DataOut = [];
 Par = [];
 ProcDir = 0;
+folderName = "";
 xmlfilename = '';
 xmlpathname = '';
 datafilename = '';
@@ -55,6 +56,9 @@ UseTiltCorr = 0;
 
 if(isfield(Parameters,'ProcDir'))
     ProcDir = Parameters(1).ProcDir;
+end
+if(isfield(Parameters,'folderName'))
+    folderName = Parameters(1).folderName;
 end
 if(isfield(Parameters,'xmlfilename'))
     xmlfilename = Parameters(1).xmlfilename;
@@ -101,7 +105,11 @@ end
 
 if(ProcDir)
     % select directory containing the hourly AZFP files to process
-    dirname = uigetdir('', 'Select AZFP directory');
+    if (isempty(folderName)) 
+        dirname = uigetdir('', 'Select AZFP directory');
+    else
+        dirname = folderName;
+    end
     cd(dirname);
     % get a list of all of the AZFP files
     filelist = dir('*.01*.');
