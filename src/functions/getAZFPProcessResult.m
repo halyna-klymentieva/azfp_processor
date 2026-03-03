@@ -1,4 +1,4 @@
-function output = getAZFPProcessResult(savePath, sourceFolder)
+function output = getAZFPProcessResult(savePath, sourceFolder, fileNames, xmlFileName)
 %GETAZFPPROCESSRESULT Summary of this function goes here
 % AZFP Code from ASL for converting from engineering to real units
 % Parameter description and the default value (if the value is omitted):
@@ -13,27 +13,19 @@ function output = getAZFPProcessResult(savePath, sourceFolder)
 % w: http://www.aslenv.com/
 % For any suggestions, comments, questions or collaboration, please contact me.
 
-arguments (Input)
-    savePath string
-    sourceFolder string = ""
-end
-
-arguments (Output)
-    output
-end
-
 % If savePath already exists data is loaded from file
 if isfile(savePath)
     tic
-    fprintf('Loading data from cache. Will not be re-generated if not deleted.\n');
+    fprintf(' Loading data from cache.\n Cache will not be re-generated if not manually deleted.\n Loading...\n');
     load(savePath, 'Output');
     toc
 else
+
     %% Params
     % FILE LOADING AND AVERAGING:
     % Parameters.ProcDir = 0; 1 will prompt for an entire directory to
     % process, = 0 will prompt to load individual files in a directory
-    Parameters.ProcDir = 1;
+    Parameters.ProcDir = 0;
 
     % FILE LOADING AND AVERAGING:
     % Parameters.ProcDir = 0; 1 will prompt for an entire directory to
@@ -42,11 +34,12 @@ else
 
     % Parameters.datafilename = ''; % '' will prompt for hourly AZFP
     % file(s) to load, example '16010100.01A'
-    Parameters.datafilename = '';
+    % Parameters.datafilename = '';
+    Parameters.datafilename = fileNames;
 
     % Parameters.xmlfilename = ''; % prompt for XML filename if no XML file exists
     % in the directory, example '15101614.XML'
-    Parameters.xmlfilename = '';
+    Parameters.xmlfilename = xmlFileName;
 
     % Parameters.Salinity = 35; % Salinity in psu
     Parameters.Salinity = 33;
@@ -85,6 +78,7 @@ else
     % Parameters.UseTiltCorr = 0; Use the tilt corrected ranges for the echogram plots,
     % default 0. Will give a warning if the tilt magnitudes are unreasonable (> 20 deg)
     Parameters.UseTiltCorr = 0;
+
     %% Load AZFP Data
     % If no sourceFolder - will pull up your file explorer on the current path;
     % first select the *folder* with the AZFP data, then select the XML file
@@ -93,6 +87,7 @@ else
     tic
     [Output, ~] = ProcessAZFP(Parameters);
     toc
+
     %% Davies lab code: sort Output by date
     [~, order] = sort([Output(1).Date], 'ascend');
 
@@ -117,7 +112,7 @@ else
     Output(4).TS = Output(4).TS(order, :);
 
     % Save the Processed Data for later use
-    cacheOutput(savePath, Output)
+    saveAZFPData(savePath, Output)
 end
 
 output = Output;

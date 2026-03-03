@@ -1,10 +1,5 @@
-function cacheOutput(savePath, Output)
-%CACHEOUTPUT Caches output data in file
-
-arguments (Input)
-    savePath
-    Output
-end
+function saveAZFPData(savePath, Output)
+%SAVEAZFPDATA Caches output data in file
 
 tic
 fprintf('Caching processed output to %s...\n', savePath);

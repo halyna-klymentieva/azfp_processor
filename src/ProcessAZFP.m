@@ -133,9 +133,10 @@ else
         end
         cd(dirname);
     else
-        dirname = pwd;
-        numfiles = 1;
-        filelist = datafilename;
+        numfiles = length(datafilename);
+        filelist = char(datafilename);
+        cd(folderName)
+        dirname = folderName;
     end
 end
 % check filename for uls6

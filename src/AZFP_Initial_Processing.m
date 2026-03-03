@@ -18,748 +18,135 @@
 % Halyna's version
 % Feb 19, 2026
 %Code clean up; include the code to save output from each day
-
 %% Prepare your workspace and file directories
 addpath(genpath(pwd));
 clc
 clear variables
 close all
-
-sourceFolder = fullfile(pwd, '../data_filtered/');
-saveName = ['04-24', '.mat'];
-savePath = fullfile('../output/', saveName);
-
+%% User-defined variables
+dateOfData = '25-07-24';
+xmlFileName = '25072317.XML';
+gliderVariableName = 'cabot_20250723_213_delayed';
+gliderFileName = 'cabot_20250723_213_delayed_0660_8583_ae5f.mat';
+calibrationOffsets = [-0.72, -4.60, -4.63, -0.20];
+% Far field per frequency cut-off range, see filterFarField function
+farFieldCutOffRange = [30, 10, 10, 5];
+dataCutOffDepth = 67.5;
+surfaceNoiseDepthMin = 10; % m
+surfaceNoiseDepthMax = 14; % m
+maxDepth = 105;
+%% Global variables
+azfpDataCacheFilename = "data-" + dateOfData + '.mat';
+divesDataCacheFilename = "dives-" + dateOfData + '.mat';
+sourceFolder = fullfile(pwd, '..', 'data');
+sourceFileNames = getFilenamesByDate(dateOfData, sourceFolder);
+fprintf('For data %s files count: %d.\n', dateOfData, length(sourceFileNames));
+azfpDataCachePath = fullfile(pwd, '..', 'output', azfpDataCacheFilename);
+divesDataCachePath = fullfile(pwd, '..', 'output', divesDataCacheFilename);
+gliderFileFullName = fullfile(pwd, '..', 'gliderData', gliderFileName);
 %% Getting output of AZFP raw data processing
 % before starting, you may want to increase the amount of memory that
 % MATLAB can use.  Select Home - Preferences - General - Java Heap Memory
 % and use the scale bar to increase memory.
-Output = getAZFPProcessResult(savePath, sourceFolder);
-
+%
+% If output file alteady exist AZFP processing will not happen - data
+% will be loaded from existing output
+Output = getAZFPProcessResult(azfpDataCachePath, sourceFolder, sourceFileNames, xmlFileName);
 %% Make a test figure to make sure the data look right
 % getTestFigure(Output)
-
-%% Load in glider data
-S = load('../gliderData/cabot_20250723_213_delayed_0660_8583_ae5f.mat');
-gliderdata = S.cabot_20250723_213_delayed;
-clear S
-
-%PLOT DEPTH AND TIME HERE (CONVERT PING NUMBER TO TIME) TO CHECK GLIDER
-%DATA
-
-% change glider unix time format to same format as in Output file (matlab
-% time format)
-unix_epoch = datenum(1970, 1, 1, 0, 0, 0);
-gliderdata.time = gliderdata.time ./ 86400 + unix_epoch;
-
-% find the non-NaN indices of glider depth and get their values + the time
-% at which they were recorded
-nanindex = find(~isnan(gliderdata.depth));
-gdepth = gliderdata.depth(nanindex);
-gtime = gliderdata.time(nanindex);
-
-%% % During the Baffin Bay 2023 and 2024 missions, it appears that the echosounder was
-% % pinging even when the glider recorded the AZFP as being powered off.
-% % This means there will be random pings on the upcast or when the glider is
-% % transmitting data at the surface.  I need to remove these pings.  Keep
-% % only pings and time stamps where the glider has recorded that the AZFP is
-% % on.  Talk to Jude and ASL about this issue.
-%
-% % First test whether there is a time alignment issue using the indicator that the
-% % AZFP was on (c_azfp_on).  -1 = off, 0 = on
-% nanindex2=find(~isnan(gliderdata.c_azfp_on));
-% azfp_on=gliderdata.c_azfp_on(nanindex2);
-% azfp_time=gliderdata.time(nanindex2);
-%
-% figure
-% scatter(Output(1).Date,zeros(1,length(Output(1).Date)))
-% hold on
-% plot(azfp_time,azfp_on)
-% set(gca,'YLim',[-5 1])
-% legend('AZFP time stamp per ping','Glider Record of AZFP on/off (c azfp on)','FontSize',20)
-% datetick
-%
-% % time align
-% for ii = 1:length(Output(1).Date)
-%     [~,timeindex2(ii)] = min(abs(Output(1).Date(ii) - azfp_time));
-% end
-% Output(1).azfp_on=azfp_on(timeindex2);
-% azfpidx=azfp_on(timeindex2);
-%
-% % remove the pings where the glider says the AZFP should not be on
-% Output(1).Date = Output(1).Date(azfpidx==0);
-% Output(1).BatteryMain = Output(1).BatteryMain(azfpidx==0);
-% Output(1).BatteryTx = Output(1).BatteryTx(azfpidx==0);
-% Output(1).Depth = Output(1).Depth(azfpidx==0);
-%
-% Output(1).N = Output(1).N(azfpidx==0,:);
-% Output(2).N = Output(2).N(azfpidx==0,:);
-% Output(3).N = Output(3).N(azfpidx==0,:);
-% Output(4).N = Output(4).N(azfpidx==0,:);
-%
-% Output(1).Sv = Output(1).Sv(azfpidx==0,:);
-% Output(2).Sv = Output(2).Sv(azfpidx==0,:);
-% Output(3).Sv = Output(3).Sv(azfpidx==0,:);
-% Output(4).Sv = Output(4).Sv(azfpidx==0,:);
-%
-% Output(1).TS = Output(1).TS(azfpidx==0,:);
-% Output(2).TS = Output(2).TS(azfpidx==0,:);
-% Output(3).TS = Output(3).TS(azfpidx==0,:);
-% Output(4).TS = Output(4).TS(azfpidx==0,:);
-
 %% Standard Sphere Calibration application - Halyna used 2025 callibration data: 130 kHz (-0.72), 200 kHZ (-4.60), 455 kHZ (-4.63),769 kHZ (-0.20),
 
 % Echosounder 59016 (Davies) calibration offset from standard sphere
 % calibration conducted June 2024.  Davies and Mesquita have
 % calibration files.
-Output(1).Sv(:, :) = Output(1).Sv(:, :) - 0.72;
-Output(2).Sv(:, :) = Output(2).Sv(:, :) - 4.60;
-Output(3).Sv(:, :) = Output(3).Sv(:, :) - 4.63;
-Output(4).Sv(:, :) = Output(4).Sv(:, :) - 0.20;
-
+Output = standardSphereCallibration(calibrationOffsets, Output);
 %% Trim Transmit Pulse and Near Field from Sv data (Step 5 in tutorial)
-% Using 1 m as the calculated Rb for the highest frequency (769 kHz) is ~2 m;
-% therefore this should eliminate the near-field data from all four
-% frequencies
-I = find(Output(1).Range(1, :) <= 2);
-for i = 1:length(Output)
-    Output(i).Sv(:, I) = [];
-    Output(i).Range(:, I) = [];
-end
-
-% self explanatory, if the ping is within 1 m of the transducer, remove it
-% on all frequencies
-
+Output = filterNearField(Output);
+%% Load in glider data
+[gliderDepth, gliderTime, gliderData] = loadGliderData(gliderFileFullName, gliderVariableName);
+%% glider data filtering for extra pings during inactivity
+% Output = gliderDataFilter(gliderData, Output);
 %% Time - align the glider and AZFP pressure data (Step 2 in tutorial)
-% for each date in the echosounder Output file, create a timeindex entry equal to
-% the index # of where the minimum difference between each recorded echosounder time
-% stamp and every non-NaN glider time stamp is; this is time-aligning the glider and
-% echosounder data and assumes no clock drift between glider and AZFP
-for ii = 1:length(Output(1).Date)
-    [~, timeindex(ii)] = min(abs(Output(1).Date(ii)-gtime));
-end
-
-% Create a new variable in the echosounder Output structure called Depth,
-% and make it equal to the echosounder Range (i.e. transducer ping depth) plus
-% the glider depth at that time
-% Then make three more Depths of equal value, so you have one per frequency
-Output(1).Depth = Output(1).Range(1, :) + gdepth(timeindex);
-Output(2).Depth = Output(1).Depth(:, 1:size(Output(2).Sv, 2));
-Output(3).Depth = Output(1).Depth(:, 1:size(Output(3).Sv, 2));
-Output(4).Depth = Output(1).Depth(:, 1:size(Output(4).Sv, 2));
-
-%% Remove pings at the surface of the ocean because these often have bubbles in them
-
-% ii=find(Output(1).Depth(:,1)<5)
-% Output(1).Depth(ii,:)=[];
-% Output(2).Depth(ii,:)=[];
-% Output(3).Depth(ii,:)=[];
-% Output(4).Depth(ii,:)=[];
-%
-%Output(1).Sv(ii,:)=[]; % May 2025:
-%Output(2).Sv(ii,:)=[]; % Andréa activated lines 272-277 to match # of elements across matrices
-%Output(3).Sv(ii,:)=[]; % Edit: duplicated code (lines 339-365) to run sequentially
-%Output(4).Sv(ii,:)=[];
-%
-%Output(1).Date(ii,:)=[];
-shorttime = gdepth(timeindex);
-shorttime(ii) = []; %June 2025: Andréa commented line 279 out (may be causing
-%the mistatch in the # of elements) [haven't got it to work yet]
-
-% Find the indices of each dive in the AZFP data (part of Step 2 in the tutorial)
-% StartDive = find([1;diff(Output(1).Depth(:,1))<-10]);
-
-% find indices where depth decreases. These indices will be used as
-% starting points for searching for actual dives.
-
-% cc = 0; % number of distinct dives to go into the structure
-% for DD = 1:length(StartDive)-1
-%     if (StartDive(DD+1)-1 - StartDive(DD)) > 50
-%         % This if statement checks the "length" of each dive and only keeps
-%         % dives with > 250 entries
-%         % This avoids short dives and "false" dives where the glider begins
-%         % to rise again at the end of a dive
-%         % Depending on the depth of the area you are in, this value may
-%         % need to be changed in order to capture the true dives
-%         cc = cc+1;
-%         Dive(cc).Index = [StartDive(DD);StartDive(DD+1)-1];
-%     end
-% end
-% Dive(cc+1).Index = [StartDive(DD+1);length(Output(1).Depth(:,1))]; % manual entry of the last dive
-
-% The index-finding code skips over a few data points in between dives,
-% which is needed to correct for since glider dives are not separated by time;
-% they happen one after the other while the instrument is on
-% for DD = 1:cc-1
-%     Dive(DD).Index(2) = Dive(DD + 1).Index(1);
-% end
-% Dive(end).Index(2) = length(Output(1).Depth);
+[Output, fixedDepth] = timeAlignAZFPToGliderData(Output, gliderTime, gliderDepth);
+fixedDepth(end) = [];
 
 %% Far field noise cut off  (Steps 3 and 4 in the tutorial)
-
-% To start getting an idea of where the noise floor cutoff range is
-% figure
-% for ii=2:50:2000  % can change to plot more or less data.
-%     scatter(Output(1).Range(2,:),Output(1).Sv(ii,:),'k') % frequency change line
-%     % plots range vs frequency-dependent Sv
-%     hold on
-%     xlabel('range')
-%     ylabel('Sv')
-% end
-
-% For Bay of Fundy, these values are: 130 kHz = 75 m, 200 kHz = 50 m, 455 kHz = 35 m, 769 kHz = 20 m
-% these are our "eyeballed" values from the figures
-% Remove these depths from the analysis
-% For Baffin Bay mission; 15 m on the 130 kHz is all we are getting.
-cr = [30, 10, 10, 5];
-for i = 1:length(Output) % for each frequency
-    J = find(Output(i).Range(1, :) >= cr(i)); % find the frequency-specific
-    % far field data
-    Output(i).Sv(:, J) = []; % eliminate the Sv in the far field
-    Output(i).Range(:, J) = []; % eliminate the far field ranges
-    % Redo the depth calculation to account for the far field being cut off
-    Output(i).Depth = Output(i).Range(1, :) + shorttime;
-    % Output(i).PingDepth = Output(i).Range(1,:) + Output(1).Depth;
-end
+Output = filterFarField(Output, fixedDepth, farFieldCutOffRange);
 
 %% Remove pings at the surface of the ocean because these often have bubbles in them
-
-Output(1).Sv(ii, :) = []; % May 2025:
-Output(2).Sv(ii, :) = []; % Andréa activated lines 272-277 to match # of elements across matrices
-Output(3).Sv(ii, :) = [];
-Output(4).Sv(ii, :) = [];
-
-Output(1).Date(ii, :) = [];
-
-shorttime = gdepth(timeindex);
-shorttime(ii) = [];
-
-% Find the indices of each dive in the AZFP data (part of Step 2 in the tutorial)
-StartDive = find([1; diff(Output(1).Depth(:, 1)) < -10]);
-
-cc = 0; % number of distinct dives to go into the structure
-for DD = 1:length(StartDive) - 1
-    if (StartDive(DD+1) - 1 - StartDive(DD)) > 50
-        cc = cc + 1;
-        Dive(cc).Index = [StartDive(DD); StartDive(DD+1) - 1];
-    end
-end
-Dive(cc+1).Index = [StartDive(DD+1); length(Output(1).Depth(:, 1))]; % manual entry of the last dive
-
-for DD = 1:cc - 1
-    Dive(DD).Index(2) = Dive(DD+1).Index(1);
-end
-Dive(end).Index(2) = length(Output(1).Depth);
-
+[Output, Dives] = filterSurfacePings(Output);
 %% Histogram of Sv data for all frequencies
-% figure
-%
-% for i = 1:4
-%     subplot(2,2,i)
-%     sv_data = Output(i).Sv(:);
-%     histogram(sv_data, 100, 'Normalization', 'probability')
-%     xlabel('Sv (dB)')
-%     ylabel('Probability')
-%     title(sprintf('%d kHz', Output(i).Freq))
-%     grid on
-% end
-
+% getFigureAllFreqSvHystogram(Output)
 %% Make a histogram of the seafloor data decibel strengths
-% %
-% % % Find the seafloor indices
-% for k=1:length(Output) % for each frequency
-%     % for j = 1:cc % for each dive
-%         % first need to pull out sv and depths for each dive separately, so
-%         % remove bottom does not delete too much data
-%         sv = Output(k).Sv';
-%         depth = Output(k).Depth';
-%         % depth = Output(k).PingDepth';
-%
-%         % next run the find bottom function
-%         [bott_sv2(k,:), bott_dep2(k,:), bott_ind2(k,:)] = find_bottom_AM(sv, depth);
-%     % end
-% end
-%
-% figure(1)
-%
-% % subplot(2,2,1)
-% histogram(bott_sv2(1,:),'BinWidth',1,'FaceAlpha',0.5);
-% hold on
-% [values, edges] = histcounts(bott_sv2(1,:),'BinWidth', 1);
-% centers = (edges(1:end-1)+edges(2:end))/2;
-% plot(centers, values,'LineWidth',2)
-% % hold off
-% % title('130kHz')
-% %
-% % subplot(2,2,2)
-% histogram(bott_sv2(2,:), 'BinWidth',1,'FaceAlpha',0.5);
-% hold on
-% [values, edges] = histcounts(bott_sv2(2,:),'BinWidth', 1);
-% centers = (edges(1:end-1)+edges(2:end))/2;
-% plot(centers, values,'LineWidth',2)
-% % hold off
-% % title('200kHz')
-% %
-% % subplot(2,2,3)
-% histogram(bott_sv2(3,:),'BinWidth',1,'FaceAlpha',0.5);
-% hold on
-% [values, edges] = histcounts(bott_sv2(3,:),'BinWidth', 1);
-% centers = (edges(1:end-1)+edges(2:end))/2;
-% plot(centers, values,'LineWidth',2)
-% % hold off
-% % title('455kHz')
-% % %
-% % % subplot(2,2,4)
-% histogram(bott_sv2(4,:),'BinWidth',1,'FaceAlpha',0.5);
-% hold on
-% [values, edges] = histcounts(bott_sv2(4,:),'BinWidth', 1);
-% centers = (edges(1:end-1)+edges(2:end))/2;
-% plot(centers, values,'LineWidth',2)
-% % % hold off
-% % % title('769kHz')
-% %
-% % sgtitle(strcat('Bottom Depth Sv Values (dB) for ',date, ' July 2022'));
-% legend({'130 kHz','','200 kHz','','455 kHz','','769 kHz'});
-% %
-% % % filename = strcat("/Users/dmossman/Box/2022 MSc Thesis Work/Visuals/MATLAB Echosounder Figures/",date,"Sept/Bott_Sv_Hist_Subplots",date,"Sept.png");
-% % % print(gcf,'-dpng',filename,'-r0')
-% % % clear filename;
-
+% getFigureSeafloorDecibelStrength(Output)
 %% Remove all data below a defined depth
-for k = 1:length(Output)
-    sv_data = Output(k).Sv';
-    depth_data = Output(k).Depth';
-
-    dive_mask = false(size(depth_data));
-
-    % Define dives
-    for d = cc:cc
-        idx = Dive(d).Index;
-
-        if isnumeric(idx) && numel(idx) == 2
-            ping_start = idx(1);
-            ping_end = idx(2);
-        elseif isstruct(idx) && isfield(idx, 'StartPing') && isfield(idx, 'EndPing')
-            ping_start = idx.StartPing(1);
-            ping_end = idx.EndPing(1);
-        else
-            continue
-        end
-
-        if ping_end <= size(dive_mask, 2)
-            dive_mask(:, ping_start:ping_end) = true;
-        end
-    end
-
-    % Define depth
-    deep_mask = depth_data > 67.5;
-
-    % Combine dive + depth masks
-    final_mask = dive_mask & deep_mask;
-
-    % Apply mask
-    sv_data(final_mask) = NaN;
-
-    % Store Sv data back in Output
-    Output(k).Sv = sv_data';
-end
+Output = filterDepthDataCutOff(Output, Dives, dataCutOffDepth);
 
 %% Remove seafloor echoes (Step 1 in the tutorial)
-% % Find the seafloor indices
-tic
-for k = 1:length(Output) % for each frequency
-    %for j = 1:cc % for each dive
-    % first need to pull out sv and depths for each dive separately, so
-    % remove bottom does not delete too much data
-    sv = Output(k).Sv';
-    depth = Output(1).Depth';
-    % depth = Output(1).PingDepth';
-    % next run the find and remove bottom functions to delete all data
-    % at or below the seafloor
-    [bott_sv, bott_dep, bott_ind] = find_bottom_AM(sv, depth); %June 2025: Andréa updated
-    sv_nb = remove_bottom_AM(sv, bott_sv, bott_ind); %with new code
-    % finally, reinsert the data with the seafloor removed into the
-    % original Output file
-    % Output(k).Sv(Dive(j).Index(1):Dive(j).Index(2),:) = sv_nb';
-    Output(k).Sv = sv_nb';
-    %end
-end
-toc
-
-%% Remove residual echoes
-
-for k = 1:length(Output)
-    sv_data = Output(k).Sv';
-    depth_data = Output(k).Depth';
-
-    % Frequency-specific parameters
-    switch k
-        case 4 % 769 kHz needs different handling
-            depth_range = [50, 98]; % Detection zone (m)
-            buffer = 16; % Bins above peak to keep
-        otherwise
-            depth_range = [50, 98];
-            buffer = 10;
-    end
-
-    % Create ping-level mask only for dives 1–227
-    dive_mask = false(1, size(sv_data, 2));
-    for d = 1:length(Dive)
-        idx = Dive(d).Index;
-
-        if isnumeric(idx) && numel(idx) == 2
-            ping_start = idx(1);
-            ping_end = idx(2);
-        elseif isstruct(idx) && isfield(idx, 'StartPing') && isfield(idx, 'EndPing')
-            ping_start = idx.StartPing(1);
-            ping_end = idx.EndPing(1);
-        else
-            continue
-        end
-
-        % Apply bounds check
-        ping_end = min(ping_end, size(sv_data, 2));
-        dive_mask(ping_start:ping_end) = true;
-    end
-
-    for ping = find(dive_mask)
-        sv_col = sv_data(:, ping);
-        depth_col = depth_data(:, ping);
-
-        if all(isnan(sv_col)) || max(depth_col) < depth_range(1)
-            continue
-        end
-
-        % --- STAGE 1: Peak detection within target range ---
-        zone_mask = depth_col > depth_range(1) & depth_col < depth_range(2);
-        [~, peak_idx] = max(sv_col.*zone_mask);
-
-        % --- STAGE 2: Masking logic ---
-        if ~isnan(peak_idx) && sv_col(peak_idx) > -70
-            cutoff = min(length(sv_col), peak_idx+buffer);
-            sv_col(peak_idx:cutoff) = NaN;
-            sv_col(cutoff+1:end) = NaN;
-        elseif max(depth_col) > 105
-            sv_col(depth_col > 105) = NaN;
-        end
-
-        sv_data(:, ping) = sv_col;
-    end
-
-    Output(k).Sv = sv_data';
-end
+Output = filterSeafloorEchoes(Output, Dives);
 
 %% Remove surface noise
-
-depthMin = 10; % m
-depthMax = 14; % m
-
-for k = 1:4
-    sv_data = Output(k).Sv';
-    depth_data = Output(k).Depth';
-
-    for d = 95:length(Dive)
-        idx = Dive(d).Index;
-
-        % Get ping range for this dive
-        ping_start = idx(1);
-        ping_end = idx(2);
-
-        % Mask depth band
-        for ping = ping_start:ping_end
-            depth_col = depth_data(:, ping);
-            mask_band = depth_col >= depthMin & depth_col <= depthMax;
-            sv_data(mask_band, ping) = NaN;
-        end
-    end
-
-    % Assign back to Output structure
-    Output(k).Sv = sv_data';
-end
+Output = filterSurfaceNoise(Output, Dives, surfaceNoiseDepthMin, surfaceNoiseDepthMax);
 
 %% Average 10 cm vertical resolution into 1 m depth bins to make the matrices smaller for better storage space
-dbins = 1:105;
+% Step 6: Organized Dive Structure (Stable Version)- Halyna's version
+clear Dives; % Start with a blank slate
+[azfpAggregateData, Dives] = aggregateVerticalResolution(Output, maxDepth);
 
-[m, ~] = size(Output(1).Depth);
-P(1).avg_sv = NaN(m, 105);
-P(2).avg_sv = NaN(m, 105);
-P(3).avg_sv = NaN(m, 105);
-P(4).avg_sv = NaN(m, 105);
-tic
-for ii = 1:length(Output) % for each frequency
-    for pp = 1:size(Output(ii).Depth, 1) % for each ping
-        Xw = 10.^(Output(ii).Sv(pp, :) ./ 10); % data
-        id = round(Output(ii).Depth(pp, :)); % index
-        idx = unique(id);
-        mn = accumarray(id', Xw', [], @mean);
-        mn(mn == 0) = [];
-        P(ii).avg_sv(pp, idx) = mn;
-        clear id idx mm Xw
-    end
-    P(ii).avg_sv = P(ii).avg_sv(:, 1:105);
-end
-toc
+%% Moving average to determine noise floor for each bin (Steps 3 and 4) and noise removal
+Dives = filterNoiseFloor(maxDepth, Output, azfpAggregateData, Dives);
+%% AZFP_Unmasked_Masked_Comparison routine (D. Mossman) - lines 626–750
+Dives = unmaskedMaskedComparison(Dives);
+%% Use this code to save Dives data to file
+saveDiveData(divesDataCachePath, Dives)
+%% Use this code if you need to merge multiple 'Dive' matrices from multiple files
 
-% %% Organize into separate dives and take the median of all pings at a given depth to create single profiles for each dive (Step 6)
-%
-% for jj=1:length(Output) % Frequency index
-%     cc = 0;
-%     for DD = 1:length(StartDive) % for each index where a dive might start
-%         if DD == length(StartDive) % important for separation of dives/deal with fact that glider comes back up sometimes
-%             % we need to check if we are at the end of the StartDive
-%             % vector, because the code changes
-%             if (size(P(jj).avg_sv,1) - StartDive(DD)) > 50 % at the end of some dives the glider starts coming back up. Avoid that data. Also avoid very short dives
-%                 cc = cc+1;  % Dive count
-%                 % grab the avg_sv values corresponding to the dive
-%                 Dive(cc).P(jj).sv = P(jj).avg_sv(StartDive(DD):end,:);
-%                 % get the median of the dive avg_sv
-%                 Dive(cc).P(jj).msv = nanmedian(Dive(cc).P(jj).sv,1);
-%                 % use the median not the mean to decrease the influence of high scattering spikes (such as bubbles and fish)
-%             end
-%         else % when we are not at the end of the StartDive vector
-%             if (StartDive(DD+1)-1 - StartDive(DD)) > 50
-%                 cc = cc+1; % Dive count
-%                 % grab the avg_sv values corresponding to the dive
-%                 Dive(cc).P(jj).sv = P(jj).avg_sv(StartDive(DD):StartDive(DD+1)-1,:);
-%                 % get the median of the dive avg_sv
-%                 Dive(cc).P(jj).msv = nanmedian(Dive(cc).P(jj).sv,1);
-%             end
-%         end
+% cd('C:/Users/Andrea/Documents/AMesquita2025/UNB/dataAnalysis/preyData/processedAZFP/updatedCode/2024/entireMission')
+% filenames = {
+%     "2024_1_Dive.mat", ...
+%     "2024_2_Dive.mat", ...
+%     "2024_3_Dive.mat", ...
+%     "2024_4_Dive.mat"
+% };
+% nFiles = numel(filenames);
+% DivesData = cell(1, nFiles);   % Dives{k} contains the Dive from file k% merge multiple structures
+% for k = 1:nFiles
+%     S = load(filenames{k}, 'Dives');
+%     if isfield(S, 'Dives')
+%         DivesData{k} = S.Dives;
+%     else
+%         DivesData{k} = [];  % or handle missing variable
 %     end
 % end
 
-%% Step 6: Organized Dive Structure (Stable Version)- Halyna's version
-clear Dive; % Start with a blank slate
-cc = 0; % Move Dive count OUTSIDE the frequency loop
-
-% First, define the dives based on frequency 1
-tic
-for DD = 1:length(StartDive)
-    % Determine the end index for this dive
-    if DD == length(StartDive)
-        end_idx = size(P(1).avg_sv, 1);
-    else
-        end_idx = StartDive(DD+1) - 1;
-    end
-
-    % Only process dives longer than 50 pings
-    if (end_idx - StartDive(DD)) > 50
-        cc = cc + 1;
-        % Store the indices so we know exactly where this dive is
-        Dive(cc).Index = [StartDive(DD), end_idx];
-
-        % Now pull data for ALL frequencies (jj) into this dive
-        for jj = 1:length(Output)
-            Dive(cc).P(jj).sv = P(jj).avg_sv(StartDive(DD):end_idx, :);
-            % Create the median profile (msv)
-            Dive(cc).P(jj).msv = nanmedian(Dive(cc).P(jj).sv, 1);
-        end
-    end
-end
-toc
-fprintf('Successfully created %d dives with all frequencies aligned.\n', cc);
-%% Moving average to determine noise floor for each bin (Steps 3 and 4)
-
-% According to Scott, each frequency should have its own noise floor due to
-% frequency dependencies, differences in the conditions, etc
-% We assume that the minimum Sv in each frequency is equivalent to the
-% noise floor for that frequency
-
-d_int = 10;
-% depth interval to average over
-
-for i = 1:length(Output) % for each frequency
-    % preallocate enough space
-    M(i).AvgSv = nan * ones(size(Dive, 2), length(dbins));
-    for f = 1:size(Dive, 2) % for each dive
-        % take the mean of d_int Sv values at a time and put them in the M
-        % structure
-        % any means that include a NaN are set to NaN
-        % (need to include the NaNs here for depth window calculations
-        % later)
-        temp = movmean(Dive(f).P(i).msv, d_int, 'includenan', 'Endpoints', 'discard');
-        M(i).AvgSv(f, 1:length(temp)) = temp;
-
-    end
-end
-
-% Then find the minimum noise interval for each frequency
-for i = 1:length(Output) % for each frequency
-    % find the minimum Sv value in the moving average and its index, not
-    % counting any NaN values
-    [N, index] = min(M(i).AvgSv, [], 'all', 'linear', 'omitnan');
-
-    % raw minimum value
-    NoiseFloor(i) = N;
-    % dive number for each frequency where the minimum is located
-    [D, J] = ind2sub(size(M(i).AvgSv), index);
-    divenum(i) = D;
-
-    while J >= 187
-        J = J - 1;
-    end
-
-    % depth interval for each frequency where the minimum Sv is located
-    DepthWindow(i, :) = dbins(J:J+d_int);
-end
-
-% remove the temporary structure
-clear temp;
-
-% Subtract the noise floor from the avg_sv structures
-for i = 1:length(Output) % for each frequency
-    % subtract the frequency-dependent noise floor from avg_sv
-    P(i).avg_sv = P(i).avg_sv - NoiseFloor(i);
-end
-
-for j = 1:size(Dive, 2) - 1 % for each dive
-    for k = 1:length(Output) % for each frequency
-        % subtract the frequency-dependent noise floor
-        Dive(j).P(k).sv = Dive(j).P(k).sv - NoiseFloor(k);
-        % recalculate the median
-        Dive(j).P(k).msv = nanmedian(Dive(j).P(k).sv, 1);
-    end
-end
-
-%% % add dive start and end time to each dive
-for DD = 1:length(Dive)
-    Dive(DD).starttime = Output(1).Date(StartDive(DD));
-    Dive(DD).endtime = Output(1).Date(Dive(DD).Index(2));
-end
-
-%% db differencing
-[m, n] = size(Dive);
-for ii = 1:n % May 2025: Andréa updated 'm' to 'n' to compute 'Diff' across all dive profiles
-    Dive(ii).P(1).Diff = real(10*log10(Dive(ii).P(2).sv)) - real(10*log10(Dive(ii).P(1).sv));
-    Dive(ii).P(2).Diff = real(10*log10(Dive(ii).P(3).sv)) - real(10*log10(Dive(ii).P(2).sv));
-    Dive(ii).P(3).Diff = real(10*log10(Dive(ii).P(4).sv)) - real(10*log10(Dive(ii).P(3).sv));
-end
-
-%% averaging the db differences per profile
-for ii = 1:n % Andréa updated 'm' to 'n' to compute 'mDiff' across all dive profiles
-    Dive(ii).P(1).mDiff = real(10*log10(nanmedian(10.^((Dive(ii).P(1).Diff) ./ 10))));
-    Dive(ii).P(2).mDiff = real(10*log10(nanmedian(10.^((Dive(ii).P(2).Diff) ./ 10))));
-    Dive(ii).P(3).mDiff = real(10*log10(nanmedian(10.^((Dive(ii).P(3).Diff) ./ 10))));
-end
-
-%% AZFP_Unmasked_Masked_Comparison routine (D. Mossman) - lines 626–750
-%  June 2025: Added by Andréa to execute all processing steps in a single run
-
-% First get the dB difference window
-% Values below are for copepods between 1.27 and 2.99 mm in length, from
-% Joe's spreadsheet
-
-% windows are likely too small; play with these values until the matching
-% matrix looks like the patches in the echogram
-% 130-200 make 0-7 dB and see if that helps
-% ignore 769 kHz for now
-
-% Controlled parameter tuning based on MultiNet data
-% Do correlations with windows in 200-455 kHz of 1 dB, 5 dB, 10 dB
-% dB_Diff_Lower = [7.4, 13.7, 7.8];
-dB_Diff_Lower = [5.1, 3.1, -0.8];
-% dB_Diff_Upper = [7.5, 14.2, 8.8];
-dB_Diff_Upper = [6.6, 8.9, 1.1];
-
-% is the 455 kHz data "real" or just noise? Calibration issues? Offset or
-% dynamic range
-
-% pick a transect, look at the bottom value, see what the values are as a
-% pseudo calibration
-% if the bottom depth values are off, we will need to do a calibration
-% correction; bottom is flat, broad, frequency-independent
-% histogram of 1 m above bottom to 2 m below bottom (and right at the bottom)
-% for each frequency, see how similar the values are (or how different)
-% gives us insight into the sensitivity
-% if the dynamic range of the different frequencies is off, this becomes
-% trickier
-
-%% Create the binary filter matrix
-
-% frequency 1 > frequency 2 as a masking matrix, to start (and vice versa)
-
-for i = 1:length(Dive) % for each dive
-    for j = 1:3 % for each frequency difference and dB window
-        %if isfield(Dive(i).P(j), "Diff") && ~isempty(Dive(i).P(j).Diff)
-        dB_Diff = Dive(i).P(j).Diff; %Dive.P.Diff is already in dB space
-        Dive(i).P(j).mask = (dB_Diff > dB_Diff_Lower(j)) & (dB_Diff < dB_Diff_Upper(j));
-        %end
-    end
-end
-
-% Then multiply masking matrix by Sv to get masked observed Sv
-
-for i = 1:length(Dive)
-    Dive(i).P(1).masked = Dive(i).P(1).sv; % 130 kHz is not masked
-end
-
-for i = 1:length(Dive)
-    for j = 1:3 % for each frequency difference mask
-        Dive(i).P(j+1).masked = Dive(i).P(j+1).sv .* Dive(i).P(j).mask;
-        Dive(i).P(j+1).masked(Dive(i).P(j+1).masked == 0) = NaN;
-    end
-end
-
-%% averaging the masked sv per profile (using median instead of mean)
-
-for ii = 1:n
-    Dive(ii).P(1).mMasked = nanmedian(Dive(ii).P(1).masked);
-    Dive(ii).P(2).mMasked = nanmedian(Dive(ii).P(2).masked);
-    Dive(ii).P(3).mMasked = nanmedian(Dive(ii).P(3).masked);
-    Dive(ii).P(4).mMasked = nanmedian(Dive(ii).P(4).masked);
-end
-
-%% Use this code if you need to merge multiple 'Dive' matrices from multiple files
-
-% %filename = strcat("C:/Users/Andrea/Documents/AMesquita2025/UNB/dataAnalysis/preyData/processedAZFP/updatedCode/2024/","2024_day2_Dive.mat");
-% %save(filename, 'Dive','-v7.3');
-% %clear filename;
-%
-% cd('C:/Users/Andrea/Documents/AMesquita2025/UNB/dataAnalysis/preyData/processedAZFP/updatedCode/2024/entireMission')
-%
-% % merge multiple structures
-% load('2024_1_Dive.mat')
-% Dive1=Dive;
-% clear Dive Output
-% load('2024_2_Dive.mat')
-% Dive2=Dive;
-% clear Dive Output
-% load('2024_3_Dive.mat')
-% Dive3=Dive;
-% clear Dive Output
-% load('2024_4_Dive.mat')
-% Dive4=Dive;
-% clear Dive Output
-%
 % % Variable: Dive
 % % Convert structures to tables
-% aa_t = struct2table( Dive1 );
-% bb_t = struct2table( Dive2 );
-% cc_t = struct2table( Dive3 );
-% dd_t = struct2table( Dive4 );
+% aa_t = struct2table( DivesData{1} );
+% bb_t = struct2table( DivesData{2} );
+% cc_t = struct2table( DivesData{3} );
+% dd_t = struct2table( DivesData{4} );
 % % Concatonate tables
 % merge_t = [ aa_t ; bb_t ; cc_t ; dd_t ];
 % % Convert table to structure
-% Dive = table2struct( merge_t )
-
+% Dive = table2struct( merge_t );
 %% make matrices of each Sv variable
 
-for i = 1:length(Dive)
-    Sv_130(i, :) = real(10*log10(Dive(i).P(1).msv));
-    Sv_200(i, :) = real(10*log10(Dive(i).P(2).msv));
-    Sv_455(i, :) = real(10*log10(Dive(i).P(3).msv));
-    Sv_769(i, :) = real(10*log10(Dive(i).P(4).msv));
-    Sv_200_130(i, :) = Dive(i).P(1).mDiff;
-    Sv_455_200(i, :) = Dive(i).P(2).mDiff;
-    Sv_769_400(i, :) = Dive(i).P(3).mDiff;
-    masked_130(i, :) = real(10*log10(Dive(i).P(1).mMasked));
-    masked_200(i, :) = real(10*log10(Dive(i).P(2).mMasked));
-    masked_455(i, :) = real(10*log10(Dive(i).P(3).mMasked));
-    masked_769(i, :) = real(10*log10(Dive(i).P(4).mMasked));
-    StartDiveTime(i, :) = Dive(i).starttime;
-    EndDiveTime(i, :) = Dive(i).endtime;
+for i = 1:length(Dives)
+    Sv_130(i, :) = real(10*log10(Dives(i).P(1).msv));
+    Sv_200(i, :) = real(10*log10(Dives(i).P(2).msv));
+    Sv_455(i, :) = real(10*log10(Dives(i).P(3).msv));
+    Sv_769(i, :) = real(10*log10(Dives(i).P(4).msv));
+    Sv_200_130(i, :) = Dives(i).P(1).mDiff;
+    Sv_455_200(i, :) = Dives(i).P(2).mDiff;
+    Sv_769_400(i, :) = Dives(i).P(3).mDiff;
+    masked_130(i, :) = real(10*log10(Dives(i).P(1).mMasked));
+    masked_200(i, :) = real(10*log10(Dives(i).P(2).mMasked));
+    masked_455(i, :) = real(10*log10(Dives(i).P(3).mMasked));
+    masked_769(i, :) = real(10*log10(Dives(i).P(4).mMasked));
+    StartDiveTime(i, :) = Dives(i).starttime;
+    EndDiveTime(i, :) = Dives(i).endtime;
 end
 Depth = 1:80;
-
 %% mask echoes below the seafloor using 769 kHz matrix (or masked 455 kHz) - ask Andrea why she disabled lines 883-910
 
 idx = NaN(size(masked_455, 1), 1);
@@ -792,15 +179,14 @@ for i = 1:size(Sv_130, 1)
 end
 
 % obtain bottom depth by dive
-nDives = length(Dive);
+nDives = length(Dives);
 endDive = zeros(nDives, 1);
 bottomDepth = zeros(nDives, 1);
 
 for i = 1:nDives
-    endDive(i) = Dive(i).Index(2) - 1;
+    endDive(i) = Dives(i).Index(2) - 1;
     bottomDepth(i) = Output(1).Depth(endDive(i));
 end
-
 %% Plot median Sv for all frequencies; Save a plot
 figure(1)
 clf
@@ -814,7 +200,7 @@ for i = 1:4
     imagesc(Sv_all{i}', 'AlphaData', ~isnan(Sv_all{i}'))
     colormap('jet')
     clim(caxisVals)
-    ylim([0, 105])
+    ylim([0, maxDepth])
     xlabel('Ping Number')
     ylabel('Depth (m)')
     title(freqLabels{i})
@@ -832,12 +218,12 @@ h.Position(1) = .94 - h.Position(3);
 h.Position(2) = 0.5 - h.Position(4) / 2;
 
 % save the figure
-filename = strcat("d:/AZFP_GSL_2025/plots/medianSv_July25.png");
-print(gcf, '-dpng', filename, '-r0')
+figure1MedianSVFileName = "figure1-median-sv-" + dateOfData + '.png';
+figure1MedianSVPath = fullfile(pwd, '..', 'output', figure1MedianSVFileName);
+print(gcf, '-dpng', figure1MedianSVPath, '-r0')
 
 clear filename;
 %close
-
 %% Plot dB differences for all frequencies; Save a plot
 figure(2)
 clf
@@ -868,12 +254,12 @@ h.Position(1) = .94 - h.Position(3);
 h.Position(2) = 0.5 - h.Position(4) / 2;
 
 % save the figure
-filename = strcat(fullfile(pwd, "../figures/"));
-print(gcf, '-dpng', filename, '-r0')
+figure2FileName = "figure2-db-diff-" + dateOfData + '.png';
+figure2Path = fullfile(pwd, '..', 'output', figure2FileName);
+print(gcf, '-dpng', figure2Path, '-r0')
 
 clear filename;
 %close
-
 %% Plot masked Sv for all frequencies; save a plot
 figure(3)
 clf
@@ -887,7 +273,7 @@ for i = 1:4
     imagesc(Sv_all{i}', 'AlphaData', ~isnan(Sv_all{i}'))
     colormap('jet')
     %caxis(caxisVals)
-    ylim([0, 105])
+    ylim([0, maxDepth])
     xlabel('Ping Number')
     ylabel('Depth (m)')
     title(freqLabels{i})
@@ -905,38 +291,32 @@ h.Position(1) = .94 - h.Position(3);
 h.Position(2) = 0.5 - h.Position(4) / 2;
 
 % save the figure
-filename = strcat("d:/AZFP_GSL_2025/plots/mMasked_July25.png");
-print(gcf, '-dpng', filename, '-r0')
-
-clear filename;
+figure3FileName = "figure3-m-masked-" + dateOfData + '.png';
+figure3Path = fullfile(pwd, '..', 'output', figure3FileName);
+print(gcf, '-dpng', figure3Path, '-r0')
 %close
-
 %% save variables
 
-filename = strcat("d:/AZFP_GSL_2025/AZFP_processed_data/", "July25_Dive.mat");
-save(filename, 'Dive', 'Sv_130', 'Sv_200', 'Sv_455', 'Sv_769', 'Sv_200_130', 'Sv_455_200', 'Sv_769_400', 'masked_130', 'masked_200', 'masked_455', 'masked_769', 'StartDiveTime', 'EndDiveTime', 'bottomDepth', '-v7.3');
-
+% filename = strcat("d:/AZFP_GSL_2025/AZFP_processed_data/", "July25_Dive.mat");
+% save(filename, 'Dive', 'Sv_130', 'Sv_200', 'Sv_455', 'Sv_769', 'Sv_200_130', 'Sv_455_200', 'Sv_769_400', 'masked_130', 'masked_200', 'masked_455', 'masked_769', 'StartDiveTime', 'EndDiveTime', 'bottomDepth', '-v7.3');
 %% calculate numerical density (ind. per m^3) from merged Dive structures
 
 sigma_bs = [1.3e-11, 7.6e-11, 7.9e-11]; % for 200kHz, 455kHz, 769kHz
 
-n = length(Dive);
+n = length(Dives);
 
 for ii = 1:n
-    Dive(ii).P(2).N = Dive(ii).P(2).masked / sigma_bs(1); % 200 kHz
-    Dive(ii).P(3).N = Dive(ii).P(3).masked / sigma_bs(2); % 455 kHz
-    Dive(ii).P(4).N = Dive(ii).P(4).masked / sigma_bs(3); % 769 kHz
+    Dives(ii).P(2).N = Dives(ii).P(2).masked / sigma_bs(1); % 200 kHz
+    Dives(ii).P(3).N = Dives(ii).P(3).masked / sigma_bs(2); % 455 kHz
+    Dives(ii).P(4).N = Dives(ii).P(4).masked / sigma_bs(3); % 769 kHz
 
-    Dive(ii).P(2).mN = nanmedian(Dive(ii).P(2).N);
-    Dive(ii).P(3).mN = nanmedian(Dive(ii).P(3).N);
-    Dive(ii).P(4).mN = nanmedian(Dive(ii).P(4).N);
+    Dives(ii).P(2).mN = nanmedian(Dives(ii).P(2).N);
+    Dives(ii).P(3).mN = nanmedian(Dives(ii).P(3).N);
+    Dives(ii).P(4).mN = nanmedian(Dives(ii).P(4).N);
 end
-
-%% scale density values by volume to estimate abundance
-
-%% estimate biomass by incorporating mean organism weight
-
-%% estimate energy density by incorporating kJ per gram of lipid
+% scale density values by volume to estimate abundance
+% estimate biomass by incorporating mean organism weight
+% estimate energy density by incorporating kJ per gram of lipid
 
 %% Plot numeric abundances for all frequencies
 %Approximate civil twilight in July 2024: 7AM-8PM (day), 11PM-4AM (night)
@@ -945,207 +325,208 @@ end
 %by corresponding sigma_bs and averaged by dive profile
 %Plot day and night profiles by depth
 
-for i = 1:length(Dive)
-    dt = datetime(Dive(i).starttime, 'ConvertFrom', 'datenum'); %convert time
-    Dive(i).localtime = dt - hours(3); %convert to local time
-end
-
-for i = 1:length(Dive)
-    hr = hour(Dive(i).localtime);
-
-    if hr >= 7 && hr <= 20
-        Dive(i).tod = "Day";
-    elseif hr >= 23 || hr <= 4
-        Dive(i).tod = "Night";
-    else
-        Dive(i).tod = "Other";
-    end
-end
-
-depths = 1:105;
-freqLabels = {'200 kHz', '455 kHz', '769 kHz'};
-P_indices = [2, 3, 4];
-
-figure('Position', [100, 100, 1200, 900])
-
-for f = 1:3
-    j = P_indices(f);
-
-    dayProfiles = [];
-    nightProfiles = [];
-
-    for i = 1:length(Dive)
-        profile = Dive(i).P(j).mN(:);
-        if strcmpi(Dive(i).tod, 'Day')
-            dayProfiles = [dayProfiles, profile];
-        elseif strcmpi(Dive(i).tod, 'Night')
-            nightProfiles = [nightProfiles, profile];
-        end
-    end
-
-    allVals = [dayProfiles(:); nightProfiles(:)];
-    clim = [nanmin(allVals), nanmax(allVals)];
-
-    % Day
-    subplot(3, 2, (f - 1)*2+1)
-    if ~isempty(dayProfiles)
-        imagesc(dayProfiles)
-        set(gca, 'YDir', 'reverse')
-        yticks(10:10:105)
-        yticklabels(string(10:10:105))
-        xlabel('Dive Profile')
-        ylabel('Depth (m)')
-        title(['Daytime - ', freqLabels{f}])
-        caxis(clim)
-        colormap(hot)
-        colorbar
-    else
-        text(0.5, 0.5, 'No day data', 'HorizontalAlignment', 'center')
-        axis off
-    end
-
-    % Night
-    subplot(3, 2, (f - 1)*2+2)
-    if ~isempty(nightProfiles)
-        imagesc(nightProfiles)
-        set(gca, 'YDir', 'reverse')
-        yticks(10:10:105)
-        yticklabels(string(10:10:105))
-        xlabel('Dive Profile')
-        ylabel('Depth (m)')
-        title(['Nighttime - ', freqLabels{f}])
-        caxis(clim)
-        colormap(hot)
-        colorbar
-    else
-        text(0.5, 0.5, 'No night data', 'HorizontalAlignment', 'center')
-        axis off
-    end
-end
-
-figure('Position', [100, 100, 1200, 900])
-
-for f = 1:3
-    j = P_indices(f);
-
-    dayProfiles = [];
-    nightProfiles = [];
-
-    for i = 1:length(Dive)
-        profile = Dive(i).P(j).mN(:);
-        if strcmpi(Dive(i).tod, 'Day')
-            dayProfiles = [dayProfiles, profile];
-        elseif strcmpi(Dive(i).tod, 'Night')
-            nightProfiles = [nightProfiles, profile];
-        end
-    end
-
-    allVals = [dayProfiles(:); nightProfiles(:)];
-    clim = [nanmin(allVals), min(nanmax(allVals), 1e4)];
-
-    % Day
-    subplot(3, 2, (f - 1)*2+1)
-    if ~isempty(dayProfiles)
-        imagesc(dayProfiles)
-        set(gca, 'YDir', 'reverse')
-        yticks(10:10:105)
-        yticklabels(string(10:10:105))
-        xlabel('Dive Profile')
-        ylabel('Depth (m)')
-        title(['Daytime - ', freqLabels{f}])
-        caxis(clim)
-        colormap(hot)
-        colorbar
-    else
-        text(0.5, 0.5, 'No day data', 'HorizontalAlignment', 'center')
-        axis off
-    end
-
-    % Night
-    subplot(3, 2, (f - 1)*2+2)
-    if ~isempty(nightProfiles)
-        imagesc(nightProfiles)
-        set(gca, 'YDir', 'reverse')
-        yticks(10:10:105)
-        yticklabels(string(10:10:105))
-        xlabel('Dive Profile')
-        ylabel('Depth (m)')
-        title(['Nighttime - ', freqLabels{f}])
-        caxis(clim)
-        colormap(hot)
-        colorbar
-    else
-        text(0.5, 0.5, 'No night data', 'HorizontalAlignment', 'center')
-        axis off
-    end
-end
-
-figure('Position', [100, 100, 1200, 900]);
-
-for f = 1:3
-    j = P_indices(f);
-    allProfiles = [];
-    todLabels = [];
-    diveIDs = [];
-
-    for i = 1:length(Dive)
-        profile = Dive(i).P(j).mN(:);
-        allProfiles = [allProfiles, profile];
-        todLabels = [todLabels, string(Dive(i).tod)];
-        diveIDs = [diveIDs, i];
-    end
-
-    clim = [0, 10000];
-    normVals = (allProfiles - clim(1)) / (clim(2) - clim(1));
-    normVals = min(max(normVals, 0), 1);
-
-    hotMap = hot(256);
-    boneMap = bone(256);
-
-    idxVals = round(normVals*255) + 1;
-    [rows, cols] = size(allProfiles);
-    RGB = ones(rows, cols, 3);
-
-    for col = 1:cols
-        if strcmpi(todLabels(col), 'Day')
-            cmap = hotMap;
-        else
-            cmap = boneMap;
-        end
-        for ch = 1:3
-            RGB(:, col, ch) = cmap(idxVals(:, col), ch);
-        end
-    end
-
-    ax = subplot(3, 1, f);
-    image(RGB)
-    set(gca, 'YDir', 'reverse')
-    yticks(10:10:105)
-    yticklabels(string(10:10:105))
-    ylabel('Depth (m)')
-    xlabel('Dive Profile')
-    title(freqLabels{f})
-
-    tickStep = max(1, floor(cols/10));
-    xtickIdx = 1:tickStep:cols;
-    xtickLabels = diveIDs(xtickIdx);
-    xticks(xtickIdx)
-    xticklabels(xtickLabels)
-
-    axPos = get(ax, 'Position');
-    cbHot = colorbar('Position', [axPos(1) - 0.05, axPos(2), 0.01, axPos(4)]);
-    colormap(cbHot, hotMap);
-    cbHot.Ticks = linspace(0, 1, 5);
-    cbHot.TickLabels = arrayfun(@(x) sprintf('%.0f', clim(1)+x*(clim(2) - clim(1))), cbHot.Ticks, 'UniformOutput', false);
-    cbHot.Label.String = 'Daytime';
-
-    cbBone = colorbar('Position', [axPos(1) + axPos(3) + 0.01, axPos(2), 0.01, axPos(4)]);
-    colormap(cbBone, boneMap);
-    cbBone.Ticks = linspace(0, 1, 5);
-    cbBone.TickLabels = arrayfun(@(x) sprintf('%.0f', clim(1)+x*(clim(2) - clim(1))), cbBone.Ticks, 'UniformOutput', false);
-    cbBone.Label.String = 'Nighttime';
-end
-
+% for i = 1:length(Dives)
+%     dt = datetime(Dives(i).starttime, 'ConvertFrom', 'datenum'); %convert time
+%     Dives(i).localtime = dt - hours(3); %convert to local time
+% end
+% 
+% for i = 1:length(Dives)
+%     hr = hour(Dives(i).localtime);
+% 
+%     if hr >= 7 && hr <= 20
+%         Dives(i).tod = "Day";
+%     elseif hr >= 23 || hr <= 4
+%         Dives(i).tod = "Night";
+%     else
+%         Dives(i).tod = "Other";
+%     end
+% end
+% 
+% depths = 1:maxDepth;
+% freqLabels = {'200 kHz', '455 kHz', '769 kHz'};
+% P_indices = [2, 3, 4];
+% 
+% figure('Position', [100, 100, 1200, 900])
+% 
+% for f = 1:3
+%     j = P_indices(f);
+% 
+%     dayProfiles = [];
+%     nightProfiles = [];
+% 
+%     for i = 1:length(Dives)
+%         profile = Dives(i).P(j).mN(:);
+%         if strcmpi(Dives(i).tod, 'Day')
+%             dayProfiles = [dayProfiles, profile];
+%         elseif strcmpi(Dives(i).tod, 'Night')
+%             nightProfiles = [nightProfiles, profile];
+%         end
+%     end
+% 
+%     allVals = [dayProfiles(:); nightProfiles(:)];
+%     clim = [min(allVals,[],'omitnan'), max(allVals,[],'omitnan')];
+% 
+%     % Day
+%     subplot(3, 2, (f - 1)*2+1)
+%     if ~isempty(dayProfiles)
+%         imagesc(dayProfiles)
+%         set(gca, 'YDir', 'reverse')
+%         yticks(10:10:maxDepth)
+%         yticklabels(string(10:10:maxDepth))
+%         xlabel('Dive Profile')
+%         ylabel('Depth (m)')
+%         title(['Daytime - ', freqLabels{f}])
+%         caxis(clim)
+%         colormap(hot)
+%         colorbar
+%     else
+%         text(0.5, 0.5, 'No day data', 'HorizontalAlignment', 'center')
+%         axis off
+%     end
+% 
+%     % Night
+%     subplot(3, 2, (f - 1)*2+2)
+%     if ~isempty(nightProfiles)
+%         imagesc(nightProfiles)
+%         set(gca, 'YDir', 'reverse')
+%         yticks(10:10:maxDepth)
+%         yticklabels(string(10:10:maxDepth))
+%         xlabel('Dive Profile')
+%         ylabel('Depth (m)')
+%         title(['Nighttime - ', freqLabels{f}])
+%         caxis(clim)
+%         colormap(hot)
+%         colorbar
+%     else
+%         text(0.5, 0.5, 'No night data', 'HorizontalAlignment', 'center')
+%         axis off
+%     end
+% end
+% 
+% figure('Position', [100, 100, 1200, 900])
+% 
+% for f = 1:3
+%     j = P_indices(f);
+% 
+%     dayProfiles = [];
+%     nightProfiles = [];
+% 
+%     for i = 1:length(Dives)
+%         profile = Dives(i).P(j).mN(:);
+%         if strcmpi(Dives(i).tod, 'Day')
+%             dayProfiles = [dayProfiles, profile];
+%         elseif strcmpi(Dives(i).tod, 'Night')
+%             nightProfiles = [nightProfiles, profile];
+%         end
+%     end
+% 
+%     allVals = [dayProfiles(:); nightProfiles(:)];
+%     clim = [ min(allVals,[],'omitnan'), min(max(allVals,[],'omitnan'), 1e4) ];
+% 
+% 
+%     % Day
+%     subplot(3, 2, (f - 1)*2+1)
+%     if ~isempty(dayProfiles)
+%         imagesc(dayProfiles)
+%         set(gca, 'YDir', 'reverse')
+%         yticks(10:10:maxDepth)
+%         yticklabels(string(10:10:maxDepth))
+%         xlabel('Dive Profile')
+%         ylabel('Depth (m)')
+%         title(['Daytime - ', freqLabels{f}])
+%         caxis(clim)
+%         colormap(hot)
+%         colorbar
+%     else
+%         text(0.5, 0.5, 'No day data', 'HorizontalAlignment', 'center')
+%         axis off
+%     end
+% 
+%     % Night
+%     subplot(3, 2, (f - 1)*2+2)
+%     if ~isempty(nightProfiles)
+%         imagesc(nightProfiles)
+%         set(gca, 'YDir', 'reverse')
+%         yticks(10:10:maxDepth)
+%         yticklabels(string(10:10:maxDepth))
+%         xlabel('Dive Profile')
+%         ylabel('Depth (m)')
+%         title(['Nighttime - ', freqLabels{f}])
+%         caxis(clim)
+%         colormap(hot)
+%         colorbar
+%     else
+%         text(0.5, 0.5, 'No night data', 'HorizontalAlignment', 'center')
+%         axis off
+%     end
+% end
+% 
+% figure('Position', [100, 100, 1200, 900]);
+% 
+% for f = 1:3
+%     j = P_indices(f);
+%     allProfiles = [];
+%     todLabels = [];
+%     diveIDs = [];
+% 
+%     for i = 1:length(Dives)
+%         profile = Dives(i).P(j).mN(:);
+%         allProfiles = [allProfiles, profile];
+%         todLabels = [todLabels, string(Dives(i).tod)];
+%         diveIDs = [diveIDs, i];
+%     end
+% 
+%     clim = [0, 10000];
+%     normVals = (allProfiles - clim(1)) / (clim(2) - clim(1));
+%     normVals = min(max(normVals, 0), 1);
+% 
+%     hotMap = hot(256);
+%     boneMap = bone(256);
+% 
+%     idxVals = round(normVals*255) + 1;
+%     [rows, cols] = size(allProfiles);
+%     RGB = ones(rows, cols, 3);
+% 
+%     for col = 1:cols
+%         if strcmpi(todLabels(col), 'Day')
+%             cmap = hotMap;
+%         else
+%             cmap = boneMap;
+%         end
+%         for ch = 1:3
+%             RGB(:, col, ch) = cmap(idxVals(:, col), ch);
+%         end
+%     end
+% 
+%     ax = subplot(3, 1, f);
+%     image(RGB)
+%     set(gca, 'YDir', 'reverse')
+%     yticks(10:10:maxDepth)
+%     yticklabels(string(10:10:maxDepth))
+%     ylabel('Depth (m)')
+%     xlabel('Dive Profile')
+%     title(freqLabels{f})
+% 
+%     tickStep = max(1, floor(cols/10));
+%     xtickIdx = 1:tickStep:cols;
+%     xtickLabels = diveIDs(xtickIdx);
+%     xticks(xtickIdx)
+%     xticklabels(xtickLabels)
+% 
+%     axPos = get(ax, 'Position');
+%     cbHot = colorbar('Position', [axPos(1) - 0.05, axPos(2), 0.01, axPos(4)]);
+%     colormap(cbHot, hotMap);
+%     cbHot.Ticks = linspace(0, 1, 5);
+%     cbHot.TickLabels = arrayfun(@(x) sprintf('%.0f', clim(1)+x*(clim(2) - clim(1))), cbHot.Ticks, 'UniformOutput', false);
+%     cbHot.Label.String = 'Daytime';
+% 
+%     cbBone = colorbar('Position', [axPos(1) + axPos(3) + 0.01, axPos(2), 0.01, axPos(4)]);
+%     colormap(cbBone, boneMap);
+%     cbBone.Ticks = linspace(0, 1, 5);
+%     cbBone.TickLabels = arrayfun(@(x) sprintf('%.0f', clim(1)+x*(clim(2) - clim(1))), cbBone.Ticks, 'UniformOutput', false);
+%     cbBone.Label.String = 'Nighttime';
+% end
+% 
 figure;
 tiledlayout(2, 2, 'Padding', 'compact', 'TileSpacing', 'compact')
 
@@ -1154,12 +535,12 @@ for f = 1:3
     dayMeans = [];
     nightMeans = [];
 
-    for i = 1:length(Dive)
-        profile = Dive(i).P(j).mN(:);
+    for i = 1:length(Dives)
+        profile = Dives(i).P(j).mN(:);
         meanVal = mean(profile, 'omitnan');
-        if strcmpi(Dive(i).tod, 'Day')
+        if strcmpi(Dives(i).tod, 'Day')
             dayMeans(end+1) = meanVal;
-        elseif strcmpi(Dive(i).tod, 'Night')
+        elseif strcmpi(Dives(i).tod, 'Night')
             nightMeans(end+1) = meanVal;
         end
     end
@@ -1167,9 +548,20 @@ for f = 1:3
     nexttile
     hold on
 
-    boxplot([dayMeans, nightMeans], ...
-        [repmat({'Day'}, 1, length(dayMeans)), repmat({'Night'}, 1, length(nightMeans))], ...
-        'Colors', 'k', 'Symbol', '')
+    rng default  
+    x1 = normrnd(5,1,100,1);
+    x2 = normrnd(6,1,100,1);
+    figure
+    boxplot([x1,x2],'Notch','on','Labels',{'mu = 5','mu = 6'})
+    title('Compare Random Data from Different Distributions')
+
+    x = [dayMeans, nightMeans];   % numeric column
+    g = [repmat({'Day'}, numel(dayMeans), 1); repmat({'Night'}, numel(nightMeans), 1)];
+    boxplot(x, g, 'Colors', 'k', 'Symbol', '');    
+
+    % boxplot([dayMeans, nightMeans], ...
+    %     [repmat({'Day'}, 1, length(dayMeans)), repmat({'Night'}, 1, length(nightMeans))], ...
+    %     'Colors', 'k', 'Symbol', '')
 
     xDay = ones(size(dayMeans)) + 0.1 * randn(size(dayMeans));
     xNight = 2 * ones(size(nightMeans)) + 0.1 * randn(size(nightMeans));
@@ -1194,7 +586,6 @@ legend({'Day points', 'Night points'}, 'Location', 'best')
 
 %clear filename;
 %close
-
 %%  Test Plots
 % Test plot data by profile
 % figure(1)
@@ -1288,7 +679,6 @@ legend({'Day points', 'Night points'}, 'Location', 'best')
 % caxis([-110 -60])
 % ylim([0 100])
 % colormap(jet)
-
 %% Plot a subset of the data - Andréa added this section to QAQC AZFP data
 
 % startTimes = datetime(StartDiveTime, 'ConvertFrom', 'datenum');
@@ -1325,7 +715,6 @@ legend({'Day points', 'Night points'}, 'Location', 'best')
 %     sgtitle(['Sv at 455 kHz — ', datestr(datetime(2018, month, startDay), 'mmmm'), ...
 %              ' ', num2str(startDay), '–', num2str(startDay+2)])
 % end
-
 %% extra plots
 % %test plot the Sv by dive for the 130 kHz
 % divedata=[Dive(1).P(1).sv];
@@ -1348,7 +737,6 @@ legend({'Day points', 'Night points'}, 'Location', 'best')
 % colormap('jet')
 % caxis([-80 -60]);
 % ylim([0 150])
-
 %% Subset 2023 data
 
 % rowIdx = 142:365;
