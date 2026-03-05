@@ -1,6 +1,6 @@
 function [output,dive] = filterSurfacePings(azfpData)
-%FILTERSURFACEPINGS Summary of this function goes here
-%   Detailed explanation goes here
+%FILTERSURFACEPINGS Remove pings at the surface of the ocean 
+% because these often have bubbles in them
 arguments (Input)
     azfpData    
 end
@@ -10,6 +10,8 @@ arguments (Output)
     dive
 end
 
+fprintf('Removing pings at the surface...\n');
+tic
 cnt = length(azfpData(1).Date);
 
 azfpData(1).Sv(cnt, :) = []; % May 2025:
@@ -35,6 +37,7 @@ for DD = 1:cc - 1
     Dive(DD).Index(2) = Dive(DD+1).Index(1);
 end
 Dive(end).Index(2) = length(azfpData(1).Depth);
+toc
 
 output = azfpData;
 dive = Dive;

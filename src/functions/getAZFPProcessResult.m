@@ -1,4 +1,4 @@
-function output = getAZFPProcessResult(savePath, sourceFolder, fileNames, xmlFileName)
+function output = getAZFPProcessResult(config)
 %GETAZFPPROCESSRESULT Summary of this function goes here
 % AZFP Code from ASL for converting from engineering to real units
 % Parameter description and the default value (if the value is omitted):
@@ -14,10 +14,10 @@ function output = getAZFPProcessResult(savePath, sourceFolder, fileNames, xmlFil
 % For any suggestions, comments, questions or collaboration, please contact me.
 
 % If savePath already exists data is loaded from file
-if isfile(savePath)
+if isfile(config.azfpDataCachePath)
     tic
     fprintf(' Loading data from cache.\n Cache will not be re-generated if not manually deleted.\n Loading...\n');
-    load(savePath, 'Output');
+    load(config.azfpDataCachePath, 'Output');
     toc
 else
 
@@ -30,16 +30,16 @@ else
     % FILE LOADING AND AVERAGING:
     % Parameters.ProcDir = 0; 1 will prompt for an entire directory to
     % process, = 0 will prompt to load individual files in a directory
-    Parameters.folderName = sourceFolder;
+    Parameters.folderName = config.sourceFolder;
 
     % Parameters.datafilename = ''; % '' will prompt for hourly AZFP
     % file(s) to load, example '16010100.01A'
     % Parameters.datafilename = '';
-    Parameters.datafilename = fileNames;
+    Parameters.datafilename = config.sourceFileNames;
 
     % Parameters.xmlfilename = ''; % prompt for XML filename if no XML file exists
     % in the directory, example '15101614.XML'
-    Parameters.xmlfilename = xmlFileName;
+    Parameters.xmlfilename = config.xmlFileName;
 
     % Parameters.Salinity = 35; % Salinity in psu
     Parameters.Salinity = 33;
@@ -111,8 +111,10 @@ else
     Output(3).TS = Output(3).TS(order, :);
     Output(4).TS = Output(4).TS(order, :);
 
+    Output = filterAZFPData(Output, config);
+
     % Save the Processed Data for later use
-    saveAZFPData(savePath, Output)
+    saveAZFPData(config.azfpDataCachePath, Output)
 end
 
 output = Output;

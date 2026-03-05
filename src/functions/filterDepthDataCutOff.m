@@ -11,6 +11,8 @@ arguments (Output)
     output
 end
 
+fprintf('Removing all data below a defined depth...\n');
+tic
 % The purpose of this count in the second cycle is unclear.
 divesCount = length(dives);
 
@@ -51,6 +53,7 @@ for k = 1:length(azfpData)
     % Store Sv data back in Output
     azfpData(k).Sv = sv_data';
 end
+toc
 
 
 output = azfpData;

@@ -48,10 +48,6 @@ Time2Avg = 60;
 Pressure = 50;
 Salinity = 35;
 Plot = 0;
-Channel = 1;
-Value2Plot = 2;
-NoiseFloor = 10000;
-Orientation = 1;
 UseTiltCorr = 0;
 
 if(isfield(Parameters,'ProcDir'))
@@ -84,24 +80,14 @@ end
 if(isfield(Parameters,'Plot'))
     Plot = Parameters(1).Plot;
 end
-if(isfield(Parameters,'Channel'))
-    Channel = Parameters(1).Channel;
-end
-if(isfield(Parameters,'Value2Plot'))
-    Value2Plot = Parameters(1).Value2Plot;
-end
-if(isfield(Parameters,'NoiseFloor'))
-    NoiseFloor = Parameters(1).NoiseFloor;
-end
-if(isfield(Parameters,'Orientation'))
-    Orientation = Parameters(1).Orientation;
-end
 if(isfield(Parameters,'UseTiltCorr'))
     UseTiltCorr = Parameters(1).UseTiltCorr;
 end
 if(~isfield(Parameters,'MultiSelect'))
     Parameters(1).MultiSelect = 'on';
 end
+
+cwd = pwd;
 
 if(ProcDir)
     % select directory containing the hourly AZFP files to process
@@ -152,11 +138,10 @@ end
 if(contains(fname,'azfp'))
     Parameters.ULS6 = 1;
 end
-pathname = pwd;
 if(~Parameters.ULS6)
     if(isempty(xmlfilename)) % if a single xml file is in the directory then load it, otherwise prompt
         xmlfile = dir('*.xml');
-        if(length(xmlfile) == 1)
+        if(isscalar(xmlfile))
             xmlfilename = char(xmlfile.name);
         end
     end
@@ -241,6 +226,8 @@ for(ii=1:numfiles)
     Output(1).HourlyAvgTemp(end+1:end+1+size(DataOut(1).HourlyAvgTemp,1)-1,:) = DataOut(1).HourlyAvgTemp;
     Output(1).SoundSpeed(end+1:end+1+size(DataOut(1).SoundSpeed,1)-1,:) = DataOut(1).SoundSpeed;
 end
+
+cd(cwd)
 
 % save the avg to the Output variable
 Output(1).Bins2Avg = Bins2Avg;

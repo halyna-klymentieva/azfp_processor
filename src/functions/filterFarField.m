@@ -27,6 +27,8 @@ end
 
 % For Baffin Bay mission; 15 m on the 130 kHz is all we are getting.
 
+fprintf('Far field noise cut off...\n');
+tic
 for i = 1:length(azfpData) % for each frequency
     J = find(azfpData(i).Range(1, :) >= farFieldCutOffRange(i)); % find the frequency-specific
     % far field data
@@ -36,6 +38,7 @@ for i = 1:length(azfpData) % for each frequency
     azfpData(i).Depth = azfpData(i).Range(1, :) + fixedDepth;
     % azfpData(i).PingDepth = azfpData(i).Range(1,:) + azfpData(1).Depth;
 end
+toc
 
 output = azfpData;
 end

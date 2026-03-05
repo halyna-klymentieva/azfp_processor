@@ -184,7 +184,7 @@ else
 end
 if(isnan(Data(1).HourlyAvgTemp))
     Data(1).HourlyAvgTemp = 16.2170; % 11.4271; %to do, move this to the setup parameter file
-    fprintf('\n**** No AZFP temperature found - using a fixed temperature of %.1f degC to calc soundspeed and range\n', Data(1).HourlyAvgTemp);
+    % fprintf('\n**** No AZFP temperature found - using a fixed temperature of %.1f degC to calc soundspeed and range\n', Data(1).HourlyAvgTemp);
 end
 
 %compute hourly average pressure, then use this to compute SoundSpeed

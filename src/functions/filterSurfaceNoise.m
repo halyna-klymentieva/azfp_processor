@@ -1,6 +1,8 @@
 function output = filterSurfaceNoise(azfpData, dives, depthMin, depthMax)
 %FILTERSURFACENOISE Remove surface noise
 
+fprintf('Removing surface noise...\n');
+tic
 divesLength = length(dives);
 for k = 1:4
     sv_data = azfpData(k).Sv';
@@ -24,6 +26,7 @@ for k = 1:4
     % Assign back to Output structure
     azfpData(k).Sv = sv_data';
 end
+toc
 
 output = azfpData;
 end

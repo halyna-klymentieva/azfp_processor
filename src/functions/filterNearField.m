@@ -11,11 +11,14 @@ arguments (Output)
     output
 end
 
+fprintf('Filtering near field 2m...\n');
+tic
 I = find(azfpData(1).Range(1, :) <= 2);
 for i = 1:length(azfpData)
     azfpData(i).Sv(:, I) = [];
     azfpData(i).Range(:, I) = [];
 end
+toc
 
 
 output = azfpData;

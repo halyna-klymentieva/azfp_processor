@@ -9,6 +9,7 @@ P(4).avg_sv = NaN(m, maxDepth);
 fprintf('Aggregating data for 1m vertical resolution...\n');
 tic
 for ii = 1:length(azfpData) % for each frequency
+    fprintf('Processing frequency #%d: *',ii);
     for pp = 1:size(azfpData(ii).Depth, 1) % for each ping
         Xw = 10.^(azfpData(ii).Sv(pp, :) ./ 10); % data
         id = round(azfpData(ii).Depth(pp, :)); % index
@@ -17,8 +18,12 @@ for ii = 1:length(azfpData) % for each frequency
         mn(mn == 0) = [];
         P(ii).avg_sv(pp, idx) = mn;
         clear id idx mm Xw
+        if (mod(pp,10000) == 0) 
+            fprintf('*');
+        end
     end
     P(ii).avg_sv = P(ii).avg_sv(:, 1:maxDepth);
+    fprintf('\n');
 end
 
 % Find the indices of each dive in the AZFP data (part of Step 2 in the tutorial)

@@ -2,6 +2,7 @@ function output = filterSeafloorEchoes(azfpData, dives)
 %FILTERSEAFLOORECHOES Remove seafloor echoes (Step 1 in the tutorial)
 
 %% Find the seafloor indices
+fprintf('Filtering seafloor echoes...\n');
 tic
 for k = 1:length(azfpData) % for each frequency
     %for j = 1:cc % for each dive
