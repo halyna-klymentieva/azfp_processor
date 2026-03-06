@@ -1,5 +1,11 @@
 %Version 1 created in 2020 by Halyna Klymentieva
 
+%% Prepare your workspace and file directories
+addpath(genpath(pwd));
+clc
+clear variables
+close all
+
 %% Merge data
 config.saveWithDateName = 0;
 config.outputFolder = fullfile(pwd, '..', 'output');
