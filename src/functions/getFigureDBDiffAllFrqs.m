@@ -1,6 +1,6 @@
 function getFigureDBDiffAllFrqs(Sv_200_130, Sv_455_200, Sv_769_400, config)
 %GETFIGUREDBDIFFALLFRQS Plot dB differences for all frequencies; Save a plot
-figure(2)
+figure(2);
 clf
 
 diffLabels = {'200-130 kHz', '455-200 kHz', '769-455 kHz'};

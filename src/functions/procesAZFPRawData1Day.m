@@ -1,4 +1,4 @@
-function output = getAZFPProcessResult(config)
+function [output, Dives, bottomDepth] = procesAZFPRawData1Day(config, dateOfData)
 %GETAZFPPROCESSRESULT Summary of this function goes here
 % AZFP Code from ASL for converting from engineering to real units
 % Parameter description and the default value (if the value is omitted):
@@ -13,14 +13,37 @@ function output = getAZFPProcessResult(config)
 % w: http://www.aslenv.com/
 % For any suggestions, comments, questions or collaboration, please contact me.
 
-% If savePath already exists data is loaded from file
-if isfile(config.azfpDataCachePath)
+%% System config variables
+config.azfpDataCacheFilename = "data-" + dateOfData + '.mat';
+config.divesDataCacheFilename = "dives-" + dateOfData + ".mat";
+config.sourceFolder = fullfile(pwd, '..', 'data');
+config.outputFolder = fullfile(pwd, '..', 'output');
+config.azfpDataCachePath = fullfile(config.outputFolder, config.azfpDataCacheFilename);
+config.divesDataCachePath = fullfile(config.outputFolder, config.divesDataCacheFilename);
+config.gliderFileFullName = fullfile(pwd, '..', 'gliderData', config.gliderFileName);
+
+sourceFileNames = getFilenamesByDate(dateOfData, config.sourceFolder);
+fprintf('For date %s files count: %d.\n', dateOfData, length(sourceFileNames));
+
+isAZFPCacheAvail = isfile(config.azfpDataCachePath);
+isDivesCacheAvail = isfile(config.divesDataCachePath);
+
+if isDivesCacheAvail
+    output = 0;
+    tic
+    fprintf(' Loading dives data from cache.\n');
+    load(config.divesDataCachePath, 'Dives', 'bottomDepth');
+    toc
+    return
+end
+
+%% If savePath already exists data is loaded from file
+if isAZFPCacheAvail
     tic
     fprintf(' Loading data from cache.\n Cache will not be re-generated if not manually deleted.\n Loading...\n');
     load(config.azfpDataCachePath, 'Output');
     toc
 else
-
     %% Params
     % FILE LOADING AND AVERAGING:
     % Parameters.ProcDir = 0; 1 will prompt for an entire directory to
@@ -35,7 +58,7 @@ else
     % Parameters.datafilename = ''; % '' will prompt for hourly AZFP
     % file(s) to load, example '16010100.01A'
     % Parameters.datafilename = '';
-    Parameters.datafilename = config.sourceFileNames;
+    Parameters.datafilename = sourceFileNames;
 
     % Parameters.xmlfilename = ''; % prompt for XML filename if no XML file exists
     % in the directory, example '15101614.XML'
@@ -57,7 +80,7 @@ else
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % PLOTTING:
     % Parameters.Plot = 1; % show an echogram plot for each channel
-    Parameters.Plot = 1;
+    Parameters.Plot = 0;
     % Parameters.Channel: freq to plot #1-4, default 1
     Parameters.Channel = 1;
     % Parameters.Value2Plot = 2; 1,2,3,4 = Counts, Sv, TS, Temperature/Tilts, default 2
@@ -113,9 +136,14 @@ else
 
     Output = filterAZFPData(Output, config);
 
-    % Save the Processed Data for later use
+    % Save the Processed Data for cache purpouses
     saveAZFPData(config.azfpDataCachePath, Output)
 end
+% Make a test figure to make sure the data look right
+% getTestFigure(Output)
+
+%% generating dives data
+[Dives, bottomDepth] = aggregateDivesData(Output, config);
 
 output = Output;
 end

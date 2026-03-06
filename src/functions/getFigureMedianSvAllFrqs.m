@@ -1,7 +1,7 @@
 function getFigureMedianSvAllFrqs(Sv_130, Sv_200, Sv_455, Sv_769, ...
     bottomDepth, config)
 %GETFIGUREMEDIANSVALLFRQS Plot median Sv for all frequencies; Save a plot
-figure(1)
+figure(1);
 clf
 
 freqLabels = {'130 kHz', '200 kHz', '455 kHz', '769 kHz'};

@@ -1,0 +1,12 @@
+%Version 1 created in 2020 by Halyna Klymentieva
+
+%% Merge data
+config.saveWithDateName = 0;
+config.outputFolder = fullfile(pwd, '..', 'output');
+% merging all output dives files
+filenames = getDivesFilenames(config.outputFolder);
+[Dives, bottomDepth] = mergeDives(filenames);
+saveDiveData(fullfile(config.outputFolder, 'dives-merged.mat'), Dives, bottomDepth)
+
+%% Merge data
+drawAndSaveFigures(Dives, bottomDepth, config)

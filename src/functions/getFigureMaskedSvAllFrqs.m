@@ -1,7 +1,7 @@
 function getFigureMaskedSvAllFrqs(masked_130, masked_200, masked_455, ...
     masked_769, config)
 %GETFIGUREMASKEDSVALLFRQS Plot masked Sv for all frequencies; save a plot
-figure(3)
+figure(3);
 clf
 
 freqLabels = {'130 kHz', '200 kHz', '455 kHz', '769 kHz'};

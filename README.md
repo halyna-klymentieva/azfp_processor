@@ -1,55 +1,94 @@
-# AZFP MATLAB Toolbox - UNB
+# AZFP MATLAB Processor
 
-A MATLAB toolbox for processing and analyzing data from the ASL Environmental Sciences **Acoustic Zooplankton Fish Profiler (AZFP)**.
+A MATLAB toolbox for processing and analyzing data from the ASL Environmental Sciences **Acoustic Zooplankton Fish Profiler (AZFP)**. This repository provides scripts to process raw acoustic data, integrate it with glider telemetry, and generate standardized outputs for analysis.
 
 ## Project Overview
 
 This project provides a comprehensive suite of scripts and functions for:
 - Initial processing of raw AZFP data (`.01*` files).
-- Data averaging (time and range bins).
+- Data averaging (time and range bins) and filtering (noise floor, seafloor echoes).
 - Frequency differencing for target identification.
 - Integration with external datasets (e.g., glider telemetry, multinet samples).
 - Advanced analysis such as dive averaging and seafloor echo processing.
 
 The core processing logic is based on the **AzfpMatlabToolbox_v18** by ASL Environmental Sciences Inc.
 
+## Requirements
+
+- **MATLAB:** Tested with version R2024a (TODO: Verify minimum version required).
+- **Toolbox Dependency:** This project requires `AzfpMatlabToolbox_v18` (included in `src/azfp`).
+- **Memory:** Large datasets may require increasing MATLAB's Java Heap Memory (Home -> Preferences -> General -> Java Heap Memory).
+
 ## Installation and Setup
 
-1. **Add to MATLAB Path:** Ensure all folders within `src/` (and its subdirectories) are added to your MATLAB path. Many scripts use `addpath(genpath(...))` to include dependencies.
-2. **Toolbox Dependency:** This project requires the `AzfpMatlabToolbox_v18`.
-3. **Seawater Library:** Includes `seawater_ver3_3.1` for calculating acoustic parameters like sound speed and absorption.
+1.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/halyna-klymentieva/azfp_processor.git
+    cd azfp_processor
+    ```
 
-## Key Components
-
-### Core Processing
-- **`AZFP_Initial_Processing.m`**: The primary entry point for raw data processing. Loads `.01*` and `.XML` files, applies calibration parameters, and outputs processed `.mat` files. (Refactored to Version 2 by Halyna).
-- **`ProcessAZFP.m`**: High-level wrapper function to load and process AZFP files based on a `Parameters` structure.
-- **`LoadAZFP.m`**: Low-level function to read binary AZFP data.
-- **`ParametersAZFP.m`**: Defines default processing and plotting parameters.
-
-### Analysis & Utilities
-- **`AZFP_Differencing.m`**: Performs frequency differencing (e.g., 200kHz minus 130kHz) in linear space and averages results into depth bins.
-- **`AZFP_Integration.m`**: Aligns AZFP data with external position data (e.g., from a glider) and multinet deployment logs.
-- **`AZFP_Dive_Averaging.m`**: Calculates median acoustic returns across different glider dives.
-- **`PlotAZFP.m`**: Generates echograms and plots for Sv, TS, Counts, or Temperature/Tilts.
-- **`find_bottom.m` / `removeBottom.m`**: Functions for detecting and removing seafloor echoes.
-
-### Supporting Functions
-- **`readULS6.m`**: Specialized reader for ULS6 instruments.
-- **`cmocean.m`**: Perceptually uniform colormaps for oceanography.
-- **`ddm2dd.m`**: Converts degrees and decimal minutes to decimal degrees.
+2.  **Data Preparation:** 
+    - Place raw `.01*` and `.XML` data files in the `data/` folder.
+    - Place glider telemetry data (`.mat` format) in the `gliderData/` folder.
+    - Ensure an `output/` directory exists at the root.
 
 ## Usage Guide
 
 ### Basic Workflow
-1.  **Initialize Parameters:** Open `AZFP_Initial_Processing.m` and configure your paths and processing parameters (e.g., `Bins2Avg`, `Time2Avg`, `Salinity`).
-2.  **Process Data:** Run `AZFP_Initial_Processing.m`. It will prompt you to select the data folder and the XML configuration file.
-3.  **Analyze & Plot:** Use `PlotAZFP.m` to visualize results or `AZFP_Differencing.m` for multi-frequency analysis.
 
-*Note: Ensure you have run the initial processing before attempting to run differencing or integration scripts, as they rely on the processed `.mat` output.*
+1.  **Initialize Parameters:** Open `src/AZFP_Initial_Processing.m` and configure the `User-defined config variables` section:
+    - `config.dates`: Dates to process (e.g., `['25-07-24'; '25-07-25']`).
+    - `config.xmlFileName`: The `.XML` configuration file name.
+    - `config.gliderFileName`: The glider data file name.
+    - `config.calibrationOffsets`: Frequency-specific calibration adjustments.
+    
+2.  **Process Data:** Run `src/AZFP_Initial_Processing.m` in MATLAB. This script:
+    - Loads raw data and configuration.
+    - Applies calibration and filtering (Near-field, Far-field, Seafloor).
+    - Generates processed `.mat` files in the `output/` directory for each day.
+    - Produces visualization plots (Echograms, Sv Histograms, etc.).
+
+3.  **Merge Results:** Run `src/Merge_Dives_Data.m` to aggregate multiple days of processed data into a single `dives-merged.mat` file and generate combined plots.
+
+## Key Scripts and Components
+
+### Core Processing
+- **`src/AZFP_Initial_Processing.m`**: Primary entry point for daily processing and visualization.
+- **`src/Merge_Dives_Data.m`**: Merges multiple daily outputs into a single dataset.
+- **`src/azfp/`**: Contains the core ASL toolbox functions (`LoadAZFP.m`, `ProcessAZFP.m`, `PlotAZFP.m`).
+- **`src/functions/procesAZFPRawData1Day.m`**: Orchestrates the loading and processing of one day of data.
+
+### Analysis & Utilities (`src/functions/`)
+- **Filtering:** `filterAZFPData.m`, `filterNoiseFloor.m`, `filterSeafloorEchoes.m`, `filterFarField.m`.
+- **Plotting:** `drawAndSaveFigures.m`, `getFigureDayVNight1.m`, `getFigureMaskedSvAllFrqs.m`.
+- **Aggregation:** `mergeDives.m`, `aggregateDivesData.m`.
+- **Integration:** `timeAlignAZFPToGliderData.m`.
+
+## Project Structure
+
+```text
+azfp_processor/
+├── data/               # Input: Raw AZFP data (.01*) and XML files
+├── gliderData/         # Input: Auxiliary glider telemetry data (.mat)
+├── output/             # Output: Processed .mat files and generated plots
+├── src/                # Source code
+│   ├── azfp/           # Core ASL AZFP Matlab Toolbox (v18)
+│   ├── functions/      # Utility, filtering, and analysis functions
+│   └── AZFP_Initial_Processing.m # Main entry point script
+├── LICENSE             # MIT License
+└── README.md           # Project documentation
+```
+
+
+## Tests
+
+(TODO: No formal test suite exists yet).
 
 ## Credits
 
-- **Original Toolbox:** Written by Dave Billenness, ASL Environmental Sciences Inc. (dbillenness@aslenv.com).
-- **Modifications & Analysis Scripts:** Scott Loranger, Delphine Mossman, and others at UNB.
-- **Colormaps:** `cmocean` by Chad Greene.
+- **Original Toolbox:** Dave Billenness, ASL Environmental Sciences Inc.
+- **Modifications & Analysis Scripts:** Kim Davies, Andrea Mesquita, Scott Loranger, Delphine Mossman, Halyna Klymentieva, and others at UNB.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
