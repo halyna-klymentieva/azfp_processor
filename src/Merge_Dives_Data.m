@@ -6,7 +6,7 @@ config.outputFolder = fullfile(pwd, '..', 'output');
 % merging all output dives files
 filenames = getDivesFilenames(config.outputFolder);
 [Dives, bottomDepth] = mergeDives(filenames);
-saveDiveData(fullfile(config.outputFolder, 'dives-merged.mat'), Dives, bottomDepth)
+saveDiveData(fullfile(config.outputFolder, '0-merged-dives.mat'), Dives, bottomDepth)
 
 %% Merge data
 drawAndSaveFigures(Dives, bottomDepth, config)

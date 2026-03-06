@@ -53,3 +53,4 @@ for i = 1:length(dates) % for each dive
     config.dateOfData = dates{i};
     drawAndSaveFigures(Dives, bottomDepth, config)
 end
+clear i
