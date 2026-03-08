@@ -27,7 +27,7 @@ close all
 
 %% User-defined config variables
 config.dates = ['25-07-24'; '25-07-25'; '25-07-26'; '25-07-27'; '25-07-28'; '25-07-29'];
-config.xmlFileName = '25072317.XML';
+config.xmlFileName = '25070417.XML';
 config.gliderVariableName = 'cabot_20250723_213_delayed';
 config.gliderFileName = 'cabot_20250723_213_delayed_0660_8583_ae5f.mat';
 config.calibrationOffsets = [-0.72, -4.60, -4.63, -0.20];

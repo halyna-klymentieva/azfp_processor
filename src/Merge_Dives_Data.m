@@ -12,6 +12,7 @@ close all
 %% Merge data
 config.saveWithDateName = 0;
 config.outputFolder = fullfile(pwd, '..', 'output');
+config.maxDepth = 105;
 % merging all output dives files
 filenames = getDivesFilenames(config.outputFolder);
 [Dives, bottomDepth] = mergeDives(filenames);

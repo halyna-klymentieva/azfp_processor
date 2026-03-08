@@ -5,7 +5,7 @@ cwd = pwd;
 cd(sourceFolder)
 
 noHyphen = replace(dateOfData, "-", "");
-filelist = dir(noHyphen+"*.01*.");
+filelist = dir(noHyphen+"*.01*");
 filelist = filelist(~endsWith({filelist.name}, {'.evi'}));
 [~, I] = sort(datenum({filelist.date}));
 f = char({filelist.name});

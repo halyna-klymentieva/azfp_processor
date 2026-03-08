@@ -21,7 +21,7 @@ config.outputFolder = fullfile(pwd, '..', 'output');
 config.azfpDataCachePath = fullfile(config.outputFolder, config.azfpDataCacheFilename);
 config.divesDataCachePath = fullfile(config.outputFolder, config.divesDataCacheFilename);
 config.gliderFileFullName = fullfile(pwd, '..', 'gliderData', config.gliderFileName);
-
+config.xmlFilePath = fullfile(config.sourceFolder, config.xmlFileName);
 sourceFileNames = getFilenamesByDate(dateOfData, config.sourceFolder);
 fprintf('For date %s files count: %d.\n', dateOfData, length(sourceFileNames));
 
@@ -62,7 +62,7 @@ else
 
     % Parameters.xmlfilename = ''; % prompt for XML filename if no XML file exists
     % in the directory, example '15101614.XML'
-    Parameters.xmlfilename = config.xmlFileName;
+    Parameters.xmlfilename = config.xmlFilePath;
 
     % Parameters.Salinity = 35; % Salinity in psu
     Parameters.Salinity = 33;
