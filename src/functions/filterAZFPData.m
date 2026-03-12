@@ -32,8 +32,6 @@ Output = filterFarField(Output, fixedDepth, config.farFieldCutOffRange);
 %% Make a histogram of the seafloor data decibel strengths
 % getFigureSeafloorDecibelStrength(Output)
 
-%% Remove all data below a defined depth
-Output = filterDepthDataCutOff(Output, Dives, config.dataCutOffDepth);
 %% Remove seafloor echoes (Step 1 in the tutorial)
 Output = filterSeafloorEchoes(Output, Dives);
 %% Remove surface noise

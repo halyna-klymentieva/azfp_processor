@@ -3,3 +3,5 @@
 data/*
 gliderData/*
 output/*
+.DS_Store
+.Rhistory
