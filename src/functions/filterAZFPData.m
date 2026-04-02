@@ -15,6 +15,11 @@ Output = filterNearField(Output);
 %% Load in glider data
 [gliderDepth, gliderTime, ~] = loadGliderData(config.gliderFileFullName, config.gliderVariableName);
 
+fprintf('Source date range: %s - %s\n', datetime(min(Output(1).Date), 'ConvertFrom','datenum'), ...
+    datetime(max(Output(1).Date),'ConvertFrom','datenum'))
+fprintf('Glider date range: %s - %s\n', datetime(min(gliderTime), 'ConvertFrom','datenum'), ...
+    datetime(max(gliderTime),'ConvertFrom','datenum'))
+
 %% glider data filtering for extra pings during inactivity
 % Output = gliderDataFilter(gliderData, Output);
 

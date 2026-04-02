@@ -34,6 +34,7 @@ cc = 0;
 
 %% Step 6: Organized Dive Structure (Stable Version)- Halyna's version
 fprintf('Organize Dive Structure...\n');
+Dive = struct('Index', {}, 'P', {});
 for DD = 1:length(StartDive)
     % Determine the end index for this dive
     if DD == length(StartDive)

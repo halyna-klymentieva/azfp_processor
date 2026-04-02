@@ -100,7 +100,7 @@ if(ProcDir)
     % get a list of all of the AZFP files
     filelist = dir('*.01*.');
     filelist = filelist(~endsWith({filelist.name},{'.evi'}));
-    numfiles = length(filelist);
+    numfiles = size(filelist,1);;
     % better? handling of multi phased data using time stamp 01A 01B files,
     % ***assumes filelist.date hasn't been modified
     [~,I] = sort(datenum({filelist.date}));
@@ -110,7 +110,7 @@ else
     if(isempty(datafilename)) %if no datafilename input, then prompt
         [filelist, dirname] = uigetfile('*.*A;*.*B;*.*C;*.*D;*.azfp', 'Select AZFP hourly file(s)','MultiSelect', Parameters(1).MultiSelect);
         if(iscell(filelist))% multiple files selected
-            numfiles = length(filelist);
+            numfiles = size(filelist,1);
         else %one file selected
             numfiles = size(filelist,1);
             if(~filelist)
@@ -119,7 +119,7 @@ else
         end
         cd(dirname);
     else
-        numfiles = length(datafilename);
+        numfiles = size(datafilename,1);
         filelist = char(datafilename);
         cd(folderName)
         dirname = folderName;

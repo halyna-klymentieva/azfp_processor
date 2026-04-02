@@ -23,7 +23,7 @@ config.divesDataCachePath = fullfile(config.outputFolder, config.divesDataCacheF
 config.gliderFileFullName = fullfile(pwd, '..', 'gliderData', config.gliderFileName);
 config.xmlFilePath = fullfile(config.sourceFolder, config.xmlFileName);
 sourceFileNames = getFilenamesByDate(dateOfData, config.sourceFolder);
-fprintf('For date %s files count: %d.\n', dateOfData, length(sourceFileNames));
+fprintf('For date %s files count: %d.\n', dateOfData, size(sourceFileNames,1));
 
 isAZFPCacheAvail = isfile(config.azfpDataCachePath);
 isDivesCacheAvail = isfile(config.divesDataCachePath);

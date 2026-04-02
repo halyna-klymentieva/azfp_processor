@@ -1,6 +1,9 @@
 .idea/
 .junie/
 data/*
+data1/*
+data2/*
+_data/*
 gliderData/*
 output/*
 .DS_Store
