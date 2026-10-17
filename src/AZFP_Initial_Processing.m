@@ -34,9 +34,14 @@ config.gliderFileName = 'cabot_20250723_213_delayed_0660_8583_ae5f.mat';
 config.calibrationOffsets = [-0.72, -4.60, -4.63, -0.20];
 % Far field per frequency cut-off range, see filterFarField function
 config.farFieldCutOffRange = [30, 10, 10, 5];
-config.surfaceNoiseDepthMin = 10;
-config.surfaceNoiseDepthMax = 14;
+% Surface-noise band removal (filterSurfaceNoise). Switched off: no noise
+% band is visible in the 2025 data, and the old step only ran from dive 95.
+% To use it again, set e.g. [10 14] (depth range in m, applied to all pings).
+config.surfaceNoiseBand = [];
 config.maxDepth = 105;
+% Binned CTD file (CTD_processor) used for sound speed and absorption.
+% '' = fixed values from the ASL toolbox (5 degC, salinity 33, 100 dbar)
+config.ctdFile = fullfile(pwd, '..', '..', 'CTD_processor', 'CTD_processed', 'ctd_binned_1dbar_Jul24-29.csv');
 
 %% Getting output of AZFP raw data processing
 % before starting, you may want to increase the amount of memory that
