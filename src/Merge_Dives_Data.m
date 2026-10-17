@@ -1,4 +1,4 @@
-%Version 1 created in 2020 by Halyna Klymentieva
+%Version 1 created in 2026 by Halyna Klymentieva
 
 % sv - "volume backscattering strength", intencity of sound reflected
 %  by biological organism within the volume of water
