@@ -8,7 +8,7 @@ for k = 1:4
     sv_data = azfpData(k).Sv';
     depth_data = azfpData(k).Depth';
 
-    for d = 95:divesLength
+    for d = 1:divesLength % was 95:divesLength (leftover from the whole-deployment script)
         idx = dives(d).Index;
 
         % Get ping range for this dive
