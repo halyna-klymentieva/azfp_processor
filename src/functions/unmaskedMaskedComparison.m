@@ -1,4 +1,15 @@
-function output = unmaskedMaskedComparison(dives)
+function output = unmaskedMaskedComparison(dives, config)
+% config.maskedOutAsZero (optional, default 0):
+%   1 = samples outside the dB-difference window count as 0 (no copepods),
+%       so medians/densities are per volume of water;
+%   0 = they are NaN and left out (original behaviour), so medians are
+%       among copepod-like samples only.
+%   Samples where the dB difference cannot be calculated (no data at one
+%   of the two frequencies) are NaN in both cases.
+if nargin < 2
+    config = struct();
+end
+maskedOutAsZero = isfield(config, 'maskedOutAsZero') && config.maskedOutAsZero;
 %UNMASKEDMASKEDCOMPARISON Summary of this function goes here
 
 %  June 2025: Added by Andréa to execute all processing steps in a single run
@@ -52,8 +63,17 @@ end
 
 for i = 1:length(dives)
     for j = 1:3 % for each frequency difference mask
-        dives(i).P(j+1).masked = dives(i).P(j+1).sv .* dives(i).P(j).mask;
-        dives(i).P(j+1).masked(dives(i).P(j+1).masked == 0) = NaN;
+        target = dives(i).P(j+1).sv;
+        other = dives(i).P(j).sv;
+        masked = target .* dives(i).P(j).mask;
+        % dB difference unknown (one frequency has no data) -> NaN;
+        % both frequencies 0 (nothing detected) -> known, 0
+        known = ~isnan(dives(i).P(j).Diff) | (target == 0 & other == 0);
+        masked(~known) = NaN;
+        if ~maskedOutAsZero
+            masked(masked == 0) = NaN; % original behaviour
+        end
+        dives(i).P(j+1).masked = masked;
     end
 end
 %% averaging the masked sv per profile (using median instead of mean)

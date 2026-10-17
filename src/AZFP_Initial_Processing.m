@@ -38,6 +38,13 @@ config.farFieldCutOffRange = [30, 10, 10, 5];
 % band is visible in the 2025 data, and the old step only ran from dive 95.
 % To use it again, set e.g. [10 14] (depth range in m, applied to all pings).
 config.surfaceNoiseBand = [];
+% After noise-floor subtraction, samples less than this many dB above the
+% noise floor are set to 0 (no detectable backscatter). [] = only samples
+% below the noise floor. (De Robertis & Higginbottom 2007 use ~10 dB.)
+config.snrThreshold = 10;
+% 1 = samples outside the copepod dB-difference windows count as 0
+% (density per m^3 of water); 0 = left out as NaN (original behaviour)
+config.maskedOutAsZero = 1;
 config.maxDepth = 105;
 % Binned CTD file (CTD_processor) used for sound speed and absorption.
 % '' = fixed values from the ASL toolbox (5 degC, salinity 33, 100 dbar)

@@ -6,9 +6,9 @@ function [Dives, bottomDepth] = aggregateDivesData(Output, config)
 [azfpAggregateData, Dives] = aggregateVerticalResolution(Output, config.maxDepth);
 
 %% Moving average to determine noise floor for each bin (Steps 3 and 4) and noise removal
-Dives = filterNoiseFloor(config.maxDepth, Output, azfpAggregateData, Dives);
+Dives = filterNoiseFloor(config.maxDepth, Output, azfpAggregateData, Dives, config);
 %% AZFP_Unmasked_Masked_Comparison routine (D. Mossman) - lines 626–750
-Dives = unmaskedMaskedComparison(Dives);
+Dives = unmaskedMaskedComparison(Dives, config);
 
 %% Calculate numerical density
 Dives = calcNumericalDensity(Dives);

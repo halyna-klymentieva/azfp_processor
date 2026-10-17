@@ -1,4 +1,15 @@
-function dives = filterNoiseFloor(maxDepth, azfpData, azfpAggregateData, Dives)
+function dives = filterNoiseFloor(maxDepth, azfpData, azfpAggregateData, Dives, config)
+% config.snrThreshold (dB, optional): after the noise floor is subtracted,
+%   samples whose signal is less than this many dB above the noise floor are
+%   set to 0 (no detectable backscatter). [] = only values below the noise
+%   floor (negative) are set to 0. NaN (no data) stays NaN.
+if nargin < 5
+    config = struct();
+end
+snrThreshold = [];
+if isfield(config, 'snrThreshold')
+    snrThreshold = config.snrThreshold;
+end
 %FILTERNOISEFLOOR Moving average to determine noise floor for each bin (Steps 3 and 4) and noise removal
 
 % According to Scott, each frequency should have its own noise floor due to
@@ -53,13 +64,33 @@ for i = 1:nFreq % for each frequency
     azfpAggregateData(i).avg_sv = azfpAggregateData(i).avg_sv - NoiseFloor(i);
 end
 
-for j = 1:size(Dives, 2) - 1 % for each dive
+nZero = zeros(nFreq, 1); nValid = zeros(nFreq, 1);
+for j = 1:size(Dives, 2) % for each dive (previously the last dive was skipped)
     for k = 1:nFreq % for each frequency
-        % subtract the frequency-dependent noise floor
-        Dives(j).P(k).sv = Dives(j).P(k).sv - NoiseFloor(k);
+        % subtract the frequency-dependent noise floor (linear units)
+        sv = Dives(j).P(k).sv - NoiseFloor(k);
+        % below the noise floor, or below the SNR threshold = no detectable
+        % backscatter -> 0 (previously negative values were kept and later
+        % turned into fake dB values by real(10*log10(x)))
+        if isempty(snrThreshold)
+            weak = sv < 0;
+        else
+            weak = sv < NoiseFloor(k) * 10^(snrThreshold / 10);
+        end
+        sv(weak) = 0;
+        Dives(j).P(k).sv = sv;
+        nZero(k) = nZero(k) + sum(weak(:));
+        nValid(k) = nValid(k) + sum(~isnan(sv(:)));
         % recalculate the median
-        Dives(j).P(k).msv = median(Dives(j).P(k).sv, 1, 'omitnan');
+        Dives(j).P(k).msv = median(sv, 1, 'omitnan');
     end
+end
+if isempty(snrThreshold)
+    fprintf('Noise floor (dB): %s; set to 0 (below noise): %s %% of samples\n', ...
+        mat2str(round(10*log10(NoiseFloor'), 1)), mat2str(round(100 * nZero' ./ max(nValid', 1))));
+else
+    fprintf('Noise floor (dB): %s; set to 0 (SNR < %g dB): %s %% of samples\n', ...
+        mat2str(round(10*log10(NoiseFloor'), 1)), snrThreshold, mat2str(round(100 * nZero' ./ max(nValid', 1))));
 end
 
 %% % add dive start and end time to each dive
