@@ -31,6 +31,11 @@ Output = filterFarField(Output, fixedDepth, config.farFieldCutOffRange);
 %% Remove pings at the surface of the ocean because these often have bubbles in them
 [Output, Dives] = filterSurfacePings(Output);
 
+%% Sound speed and absorption from the glider CTD (instead of fixed 5 degC, S=33, 100 dbar)
+if isfield(config, 'ctdFile') && ~isempty(config.ctdFile)
+    Output = applyCTDSoundCorrection(Output, fixedDepth, config.ctdFile);
+end
+
 %% Histogram of Sv data for all frequencies
 % getFigureAllFreqSvHystogram(Output)
 
@@ -40,6 +45,8 @@ Output = filterFarField(Output, fixedDepth, config.farFieldCutOffRange);
 %% Remove seafloor echoes (Step 1 in the tutorial)
 Output = filterSeafloorEchoes(Output, Dives);
 %% Remove surface noise
-Output = filterSurfaceNoise(Output, Dives, config.surfaceNoiseDepthMin, config.surfaceNoiseDepthMax);
+if isfield(config, 'surfaceNoiseBand') && numel(config.surfaceNoiseBand) == 2
+    Output = filterSurfaceNoise(Output, Dives, config.surfaceNoiseBand(1), config.surfaceNoiseBand(2));
+end
 
 end
