@@ -4,6 +4,9 @@
 %  by biological organism within the volume of water
 
 %% Prepare your workspace and file directories
+% Always work from the src folder: data/, output/, gliderData/ and the CTD
+% file are found relative to it. (Run the whole script with Run / F5.)
+cd(fileparts(mfilename('fullpath')));
 addpath(genpath(pwd));
 clc
 clear variables

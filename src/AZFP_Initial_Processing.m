@@ -20,14 +20,17 @@
 %Code clean up; include the code to save output from each day
 
 %% Prepare your workspace and file directories
+% Always work from the src folder: data/, output/, gliderData/ and the CTD
+% file are found relative to it. (Run the whole script with Run / F5.)
+cd(fileparts(mfilename('fullpath')));
 addpath(genpath(pwd));
 clc
 clear variables
 close all
 
 %% User-defined config variables
-config.dates = ['25-07-24'; '25-07-25'; '25-07-26'; '25-07-27'; '25-07-28'; '25-07-29'];
-% config.dates = '25-07-24';
+% config.dates = ['25-07-24'; '25-07-25'; '25-07-26'; '25-07-27'; '25-07-28'; '25-07-29'];
+config.dates = '25-07-24';
 config.xmlFileName = '25070417.XML';
 config.gliderVariableName = 'cabot_20250723_213_delayed';
 config.gliderFileName = 'cabot_20250723_213_delayed_0660_8583_ae5f.mat';
