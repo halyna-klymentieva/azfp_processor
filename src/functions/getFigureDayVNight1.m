@@ -1,7 +1,7 @@
 function getFigureDayVNight1(Dives, config, P_indices, freqLabels)
 %GETFUGIREDAYVNIGHT1 Summary of this function goes here
-f = figure(4);
-set(f, 'Position', [100, 100, 1200, 900], 'WindowStyle', 'docked')
+figH = figure(4);
+set(figH, 'Position', [100, 100, 1200, 900], 'WindowStyle', 'docked')
 for f = 1:3
     j = P_indices(f);
 
@@ -19,6 +19,10 @@ for f = 1:3
 
     allVals = [dayProfiles(:); nightProfiles(:)];
     clim = [min(allVals, [], 'omitnan'), min(max(allVals, [], 'omitnan'), 1e4)];
+    % all values equal (e.g. all 0) or no data: caxis needs two increasing values
+    if any(isnan(clim)) || clim(2) <= clim(1)
+        clim = [0, max(1, clim(2))];
+    end
 
 
     % Day
@@ -65,5 +69,6 @@ else
     figure2FileName = "figure2-day-v-night-1-" + config.dateOfData + '.png';
 end
 figure2Path = fullfile(pwd, '..', 'output', figure2FileName);
-print(gcf, '-dpng', figure2Path, '-r0')
+drawnow
+print(figH, '-dpng', figure2Path, '-r0')
 end

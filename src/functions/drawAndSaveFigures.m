@@ -4,6 +4,8 @@ fprintf('Building figuires...\n')
 tic
 % make matrices of each Sv variable
 chartData = getChartsData(Dives);
+% which dives had the shadowgraph camera on (marked on the figures)
+config.cameraDives = getCameraDives(Dives, config);
 %  Plot median Sv for all frequencies; Save a plot
 getFigureMedianSvAllFrqs(chartData.Sv_130, chartData.Sv_200, ...
     chartData.Sv_455, chartData.Sv_769, bottomDepth, config)

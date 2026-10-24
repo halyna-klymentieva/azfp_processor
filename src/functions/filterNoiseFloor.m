@@ -10,6 +10,16 @@ snrThreshold = [];
 if isfield(config, 'snrThreshold')
     snrThreshold = config.snrThreshold;
 end
+% config.belowNoiseValue: what weak samples become: 0 (no detectable
+% backscatter, default) or NaN (treated as no data, left out of statistics)
+belowNoiseValue = 0;
+if isfield(config, 'belowNoiseValue') && ~isempty(config.belowNoiseValue)
+    belowNoiseValue = config.belowNoiseValue;
+end
+belowNoiseLabel = 'set to 0';
+if isnan(belowNoiseValue)
+    belowNoiseLabel = 'set to NaN';
+end
 %FILTERNOISEFLOOR Moving average to determine noise floor for each bin (Steps 3 and 4) and noise removal
 
 % According to Scott, each frequency should have its own noise floor due to
@@ -77,27 +87,30 @@ for j = 1:size(Dives, 2) % for each dive (previously the last dive was skipped)
         else
             weak = sv < NoiseFloor(k) * 10^(snrThreshold / 10);
         end
-        sv(weak) = 0;
+        sv(weak) = belowNoiseValue;
         Dives(j).P(k).sv = sv;
         nZero(k) = nZero(k) + sum(weak(:));
-        nValid(k) = nValid(k) + sum(~isnan(sv(:)));
+        nValid(k) = nValid(k) + sum(~isnan(sv(:))) + sum(weak(:) & isnan(belowNoiseValue));
         % recalculate the median
-        Dives(j).P(k).msv = median(sv, 1, 'omitnan');
+        Dives(j).P(k).msv = profileStatistic(sv, config);
     end
 end
 if isempty(snrThreshold)
-    fprintf('Noise floor (dB): %s; set to 0 (below noise): %s %% of samples\n', ...
-        mat2str(round(10*log10(NoiseFloor'), 1)), mat2str(round(100 * nZero' ./ max(nValid', 1))));
+    fprintf('Noise floor (dB): %s; %s (below noise): %s %% of samples\n', ...
+        mat2str(round(10*log10(NoiseFloor'), 1)), belowNoiseLabel, mat2str(round(100 * nZero' ./ max(nValid', 1))));
 else
-    fprintf('Noise floor (dB): %s; set to 0 (SNR < %g dB): %s %% of samples\n', ...
-        mat2str(round(10*log10(NoiseFloor'), 1)), snrThreshold, mat2str(round(100 * nZero' ./ max(nValid', 1))));
+    fprintf('Noise floor (dB): %s; %s (SNR < %g dB): %s %% of samples\n', ...
+        mat2str(round(10*log10(NoiseFloor'), 1)), belowNoiseLabel, snrThreshold, mat2str(round(100 * nZero' ./ max(nValid', 1))));
 end
 
 %% % add dive start and end time to each dive
-% Find the indices of each dive in the AZFP data (part of Step 2 in the tutorial)
-StartDive = find([1; diff(azfpData(1).Depth(:, 1)) < -10]);
+% Start and end times come from each dive's own first and last ping
+% (Dives(DD).Index). Previously the start time was taken from a separate
+% list of depth jumps that also contained the short segments (<= 50 pings)
+% skipped when the dives were built, so one skipped segment would shift the
+% start time of every later dive. (No segment was skipped in the 2025 data.)
 for DD = 1:length(Dives)
-    Dives(DD).starttime = azfpData(1).Date(StartDive(DD));
+    Dives(DD).starttime = azfpData(1).Date(Dives(DD).Index(1));
     Dives(DD).endtime = azfpData(1).Date(Dives(DD).Index(2));
 end
 

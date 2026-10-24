@@ -1,7 +1,7 @@
 function  getFigureDayVNight2(Dives, config, P_indices, freqLabels)
 %GETFIGUREDAYVNIGHT2 Summary of this function goes here
-f = figure(5);
-set(f, 'Position', [100, 100, 1200, 900], 'WindowStyle', 'docked')
+figH = figure(5);
+set(figH, 'Position', [100, 100, 1200, 900], 'WindowStyle', 'docked')
 
 for f = 1:3
     j = P_indices(f);
@@ -74,5 +74,6 @@ else
     figure2FileName = "figure2-day-v-night-2-" + config.dateOfData + '.png';
 end
 figure2Path = fullfile(pwd, '..', 'output', figure2FileName);
-print(gcf, '-dpng', figure2Path, '-r0')
+drawnow
+print(figH, '-dpng', figure2Path, '-r0')
 end

@@ -8,6 +8,7 @@
 % file are found relative to it. (Run the whole script with Run / F5.)
 cd(fileparts(mfilename('fullpath')));
 addpath(genpath(pwd));
+rehash path % pick up new or changed files (MATLAB can miss changes in OneDrive folders)
 clc
 clear variables
 close all
@@ -16,6 +17,10 @@ close all
 config.saveWithDateName = 0;
 config.outputFolder = fullfile(pwd, '..', 'output');
 config.maxDepth = 105;
+% Colour scale (dB) for the Sv figures (median Sv and masked Sv)
+config.svLimits = [-100, -50];
+% Glider instrument schedule (CTD_processor): used to mark camera dives on figures
+config.scheduleFile = fullfile(pwd, '..', '..', 'CTD_processor', 'CTD_processed', 'instrument_schedule_by_cast.csv');
 % merging all output dives files
 filenames = getDivesFilenames(config.outputFolder);
 [Dives, bottomDepth] = mergeDives(filenames);

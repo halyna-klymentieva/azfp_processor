@@ -24,13 +24,14 @@
 % file are found relative to it. (Run the whole script with Run / F5.)
 cd(fileparts(mfilename('fullpath')));
 addpath(genpath(pwd));
+rehash path % pick up new or changed files (MATLAB can miss changes in OneDrive folders)
 clc
 clear variables
 close all
 
 %% User-defined config variables
-% config.dates = ['25-07-24'; '25-07-25'; '25-07-26'; '25-07-27'; '25-07-28'; '25-07-29'];
-config.dates = '25-07-24';
+config.dates = ['25-07-24'; '25-07-25'; '25-07-26'; '25-07-27'; '25-07-28'; '25-07-29'];
+% config.dates = '25-07-24';
 config.xmlFileName = '25070417.XML';
 config.gliderVariableName = 'cabot_20250723_213_delayed';
 config.gliderFileName = 'cabot_20250723_213_delayed_0660_8583_ae5f.mat';
@@ -44,11 +45,20 @@ config.surfaceNoiseBand = [];
 % After noise-floor subtraction, samples less than this many dB above the
 % noise floor are set to 0 (no detectable backscatter). [] = only samples
 % below the noise floor. (De Robertis & Higginbottom 2007 use ~10 dB.)
-config.snrThreshold = 10;
+config.snrThreshold = [];
+% What samples below the noise floor (or SNR threshold) become: 0 or NaN
+config.belowNoiseValue = NaN;
 % 1 = samples outside the copepod dB-difference windows count as 0
 % (density per m^3 of water); 0 = left out as NaN (original behaviour)
-config.maskedOutAsZero = 1;
+config.maskedOutAsZero = 0;
+% Per-depth dive profiles (Sv, masked Sv, density): 'median' (original) or
+% 'mean'. With the zeros above, medians are often 0; 'mean' = average per m^3.
+config.profileStatistic = 'median';
 config.maxDepth = 105;
+% Colour scale (dB) for the Sv figures (median Sv and masked Sv)
+config.svLimits = [-100, -50];
+% Glider instrument schedule (CTD_processor): used to mark camera dives on figures
+config.scheduleFile = fullfile(pwd, '..', '..', 'CTD_processor', 'CTD_processed', 'instrument_schedule_by_cast.csv');
 % Binned CTD file (CTD_processor) used for sound speed and absorption.
 % '' = fixed values from the ASL toolbox (5 degC, salinity 33, 100 dbar)
 config.ctdFile = fullfile(pwd, '..', '..', 'CTD_processor', 'CTD_processed', 'ctd_binned_1dbar_Jul24-29.csv');

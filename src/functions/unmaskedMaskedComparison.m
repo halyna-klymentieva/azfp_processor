@@ -80,10 +80,9 @@ end
 
 [~, n] = size(dives);
 for ii = 1:n
-    dives(ii).P(1).mMasked = median(dives(ii).P(1).masked, 'omitnan');
-    dives(ii).P(2).mMasked = median(dives(ii).P(2).masked, 'omitnan');
-    dives(ii).P(3).mMasked = median(dives(ii).P(3).masked, 'omitnan');
-    dives(ii).P(4).mMasked = median(dives(ii).P(4).masked, 'omitnan');
+    for k = 1:4
+        dives(ii).P(k).mMasked = profileStatistic(dives(ii).P(k).masked, config);
+    end
 end
 
 output = dives;

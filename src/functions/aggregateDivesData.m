@@ -11,7 +11,7 @@ Dives = filterNoiseFloor(config.maxDepth, Output, azfpAggregateData, Dives, conf
 Dives = unmaskedMaskedComparison(Dives, config);
 
 %% Calculate numerical density
-Dives = calcNumericalDensity(Dives);
+Dives = calcNumericalDensity(Dives, config);
 
 %% Plot day/night
 Dives = plotDayNight(Dives);

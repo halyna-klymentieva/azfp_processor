@@ -1,6 +1,6 @@
 function getFigureDBDiffAllFrqs(Sv_200_130, Sv_455_200, Sv_769_400, config)
 %GETFIGUREDBDIFFALLFRQS Plot dB differences for all frequencies; Save a plot
-figure(2);
+fig = figure(2);
 clf
 
 diffLabels = {'200-130 kHz', '455-200 kHz', '769-455 kHz'};
@@ -12,7 +12,8 @@ for i = 1:3
     imagesc(dbDiff_all{i}', 'AlphaData', ~isnan(dbDiff_all{i}'))
     colormap('jet')
     clim(caxisVals)
-    xlabel('Ping Number')
+    xlabel('Dive Number')
+    markCameraDives(gca, config)
     ylabel('Depth (m)')
     title(diffLabels{i})
 end
@@ -31,5 +32,6 @@ else
     figure2FileName = "figure2-db-diff-" + config.dateOfData + '.png';
 end
 figure2Path = fullfile(pwd, '..', 'output', figure2FileName);
-print(gcf, '-dpng', figure2Path, '-r0')
+drawnow
+print(fig, '-dpng', figure2Path, '-r0')
 end
