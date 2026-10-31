@@ -68,6 +68,16 @@ for i = 1:nFreq % for each frequency
     DepthWindow(i, :) = dbins(J:J+d_int);
 end
 
+% config.noiseMethod = 'range': noise was already subtracted per sample with a
+% range-dependent noise level and the SNR threshold (filterRangeNoise.m).
+% Then no constant noise floor is subtracted here; 1 m bins whose samples were
+% all below the SNR threshold (bin mean 0) become belowNoiseValue.
+rangeMode = isfield(config, 'noiseMethod') && strcmpi(config.noiseMethod, 'range');
+if rangeMode
+    fprintf('Noise already removed per sample (range-dependent); constant noise floor not subtracted.\n');
+    NoiseFloor(:) = 0;
+end
+
 % Subtract the noise floor from the avg_sv structures
 for i = 1:nFreq % for each frequency
     % subtract the frequency-dependent noise floor from avg_sv
@@ -82,7 +92,9 @@ for j = 1:size(Dives, 2) % for each dive (previously the last dive was skipped)
         % below the noise floor, or below the SNR threshold = no detectable
         % backscatter -> 0 (previously negative values were kept and later
         % turned into fake dB values by real(10*log10(x)))
-        if isempty(snrThreshold)
+        if rangeMode
+            weak = sv <= 0;
+        elseif isempty(snrThreshold)
             weak = sv < 0;
         else
             weak = sv < NoiseFloor(k) * 10^(snrThreshold / 10);
@@ -95,7 +107,10 @@ for j = 1:size(Dives, 2) % for each dive (previously the last dive was skipped)
         Dives(j).P(k).msv = profileStatistic(sv, config);
     end
 end
-if isempty(snrThreshold)
+if rangeMode
+    fprintf('1 m bins with no sample above the SNR threshold, %s: %s %% of bins\n', ...
+        belowNoiseLabel, mat2str(round(100 * nZero' ./ max(nValid', 1))));
+elseif isempty(snrThreshold)
     fprintf('Noise floor (dB): %s; %s (below noise): %s %% of samples\n', ...
         mat2str(round(10*log10(NoiseFloor'), 1)), belowNoiseLabel, mat2str(round(100 * nZero' ./ max(nValid', 1))));
 else

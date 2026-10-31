@@ -27,14 +27,23 @@ close all
 config.outputFolder  = fullfile(pwd, '..', 'output');
 config.scheduleFile  = fullfile(pwd, '..', '..', 'CTD_processor', 'CTD_processed', 'instrument_schedule_by_cast.csv');
 config.maxDepth      = 105;
-config.densityLimits = [0, 10000];   % colour scale for the sections (ind./m^3)
+% Colour scale for the sections (ind./m^3). densityScale: 'linear', 'log' or
+% 'both' (saves figure-density-noncamera-sections-linear.png and -log10.png).
+config.densityScale     = 'linear';
+config.densityLimits    = [0, 50000];   % linear scale
+config.densityLimitsLog = [10, 1e5];    % log10 scale (values < 10, incl. 0, shown as the lowest colour)
+% Profiles (figure 2): a depth is drawn only if at least this many dives of the
+% period (day or night) have data there; deeper bins with few dives (e.g. one
+% dive at 82 m over deeper water) are not representative.
+config.minDivesProfile = 10;
 
 P_indices  = [2, 3, 4];
 freqLabels = {'200 kHz', '455 kHz', '769 kHz'};
 
 %% Load merged dives
-S = load(fullfile(config.outputFolder, '0-merged-dives.mat'), 'Dives');
+S = load(fullfile(config.outputFolder, '0-merged-dives.mat'), 'Dives', 'bottomDepth');
 Dives = S.Dives;
+gliderMaxDepth = S.bottomDepth(:)';   % glider depth at the end of each descent (turn depth)
 nDives = numel(Dives);
 
 %% Camera on/off per dive -> keep non-camera dives
@@ -54,6 +63,19 @@ nk     = numel(keep);
 fprintf('Non-camera dives: %d day, %d night, %d twilight.\n', ...
     sum(tod == "Day"), sum(tod == "Night"), sum(tod == "Other"));
 
+%% Seafloor depth per dive = deepest 1 m bin with 200 kHz data (the seafloor
+% echo itself was removed earlier, so this is just above the seafloor)
+seafloorDepth = NaN(1, nk);
+for k = 1:nk
+    v = Dives(keep(k)).P(2).msv;
+    last = find(~isnan(v), 1, 'last');
+    if ~isempty(last), seafloorDepth(k) = last; end
+end
+% a few short dives (glider turned at 20-45 m) end their data early, which
+% would put a false spike in the line -> running median over 5 dives
+seafloorDepth = movmedian(seafloorDepth, 5, 'omitnan');
+gliderDepthKeep = gliderMaxDepth(keep);
+
 %% Density matrices (depth x dive), one per frequency
 N = cell(1, 3);
 for f = 1:3
@@ -67,8 +89,15 @@ for f = 1:3
     N{f} = M;
 end
 
-%% Figure 1: density sections (non-camera dives only)
+%% Figure 1: density sections (non-camera dives only), linear and/or log10 colour scale
+switch lower(config.densityScale)
+    case 'both', scales = {'linear', 'log'};
+    otherwise,   scales = {lower(config.densityScale)};
+end
+for sc = 1:numel(scales)
+isLog = strcmp(scales{sc}, 'log');
 fig1 = figure(1);
+clf
 try, theme(fig1, 'light'); end   % white background (MATLAB R2025a+ dark theme)
 set(fig1, 'Color', 'w', 'InvertHardcopy', 'off')
 set(fig1, 'Position', [100, 100, 1200, 900])
@@ -82,11 +111,20 @@ for f = 1:3
     ax = subplot(3, 1, f);
     imagesc(1:nk, depths, N{f})
     set(ax, 'YDir', 'reverse')
-    caxis(config.densityLimits)
     colormap(ax, hot)
     cb = colorbar;
-    cb.Label.String = 'Ind. m^{-3}';
+    if isLog
+        set(ax, 'ColorScale', 'log')
+        caxis(config.densityLimitsLog)
+        cb.Label.String = 'Ind. m^{-3} (log scale)';
+    else
+        caxis(config.densityLimits)
+        cb.Label.String = 'Ind. m^{-3}';
+    end
     hold on
+    % seafloor (solid cyan) and glider turn depth (dashed light grey)
+    plot(1:nk, seafloorDepth, '-', 'Color', [0, 0.9, 1], 'LineWidth', 1.2)
+    plot(1:nk, gliderDepthKeep, '--', 'Color', [0.8, 0.8, 0.8], 'LineWidth', 0.8)
     % day/night marks below the data: orange = day, dark blue = night
     plot(isDay,   (config.maxDepth + 3) * ones(size(isDay)),   's', 'MarkerSize', 3, ...
         'MarkerFaceColor', [1, 0.6, 0], 'MarkerEdgeColor', 'none')
@@ -100,10 +138,13 @@ for f = 1:3
     xticklabels(cellstr(datestr(tStart(dayStart), 'dd mmm')))
     title([freqLabels{f}, ' - non-camera dives only'])
 end
-xlabel('Non-camera dives (orange = day, dark blue = night)')
+xlabel({'Non-camera dives (orange = day, dark blue = night)', ...
+    'cyan line = seafloor (deepest bin with data), dashed grey = glider turn depth'})
 
 drawnow
-print(fig1, '-dpng', fullfile(config.outputFolder, 'figure-density-noncamera-sections.png'), '-r300')
+if isLog, tag = 'log10'; else, tag = 'linear'; end
+print(fig1, '-dpng', fullfile(config.outputFolder, ['figure-density-noncamera-sections-' tag '.png']), '-r300')
+end
 
 %% Figure 2: day vs night profiles (median and 25-75 % range across dives)
 fig2 = figure(2);
@@ -124,7 +165,9 @@ for f = 1:3
         md = median(M, 2, 'omitnan');
         q1 = prctile(M, 25, 2);
         q3 = prctile(M, 75, 2);
-        ok = ~isnan(md) & ~isnan(q1) & ~isnan(q3);
+        nDivesZ = sum(~isnan(M), 2);
+        ok = ~isnan(md) & ~isnan(q1) & ~isnan(q3) & nDivesZ >= config.minDivesProfile;
+        md(~ok) = NaN;
         c  = cols.(char(periods(p)));
         fill([q1(ok); flipud(q3(ok))], [depths(ok); flipud(depths(ok))], c, ...
             'FaceAlpha', 0.2, 'EdgeColor', 'none', 'HandleVisibility', 'off')
@@ -140,7 +183,7 @@ for f = 1:3
     legend('Location', 'southeast')
     box on
 end
-sgtitle('Non-camera dives: median (line) and 25-75 % range (shading)')
+sgtitle(sprintf('Non-camera dives: median (line) and 25-75 %% range (shading); depths with >= %d dives', config.minDivesProfile))
 
 drawnow
 print(fig2, '-dpng', fullfile(config.outputFolder, 'figure-density-noncamera-profiles.png'), '-r300')

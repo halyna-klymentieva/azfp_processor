@@ -1,91 +1,75 @@
-function output = filterSeafloorEchoes(azfpData, dives)
-%FILTERSEAFLOORECHOES Remove seafloor echoes (Step 1 in the tutorial)
+function output = filterSeafloorEchoes(azfpData, dives, config)
+%FILTERSEAFLOORECHOES Remove seafloor echoes (rewritten 2026-10-31)
+%   1. Seafloor onset per ping and frequency: the shallowest sample deeper
+%      than config.seafloorMinDepth (45 m) with Sv >= config.seafloorThreshold
+%      (-35 dB). Seafloor echoes here are about -10 to -20 dB; the densest
+%      copepod layers reach about -45 dB (single samples), so -35 dB separates
+%      them. (The previous detector, find_bottom_AM, took the shallowest peak
+%      >= -55 dB, which in dense near-bottom layers was the layer, not the
+%      seafloor: the seafloor estimate was then ~10 m too shallow and the real
+%      seafloor echo was not removed - up to 1e9 "ind/m3" in the deepest bin.)
+%   2. Seafloor depth per ping = shallowest onset over the four frequencies,
+%      moving median over config.seafloorSmoothPings pings (101), kept only
+%      where a detection exists within the window -> azfpData(1).SeafloorDepth.
+%   3. Cut depth per ping and frequency = the frequency's own onset if it is
+%      within config.seafloorMaxJump (3 m) of the smoothed seafloor depth
+%      (otherwise, e.g. a fish, the smoothed depth); everything deeper than
+%      (cut depth - config.seafloorMargin) is removed.
 
-%% Find the seafloor indices
-fprintf('Filtering seafloor echoes...\n');
+if nargin < 3, config = struct(); end
+thr      = getOpt(config, 'seafloorThreshold', -35);
+minDep   = getOpt(config, 'seafloorMinDepth', 45);
+margin   = getOpt(config, 'seafloorMargin', 0.5);
+smoothP  = getOpt(config, 'seafloorSmoothPings', 101);
+maxJump  = getOpt(config, 'seafloorMaxJump', 3);
+
+fprintf('Filtering seafloor echoes (onset >= %g dB below %g m, margin %.1f m)...\n', thr, minDep, margin);
 tic
-for k = 1:length(azfpData) % for each frequency
-    %for j = 1:cc % for each dive
-    % first need to pull out sv and depths for each dive separately, so
-    % remove bottom does not delete too much data
-    sv = azfpData(k).Sv';
-    depth = azfpData(1).Depth';
-    % depth = azfpData(1).PingDepth';
-    % next run the find and remove bottom functions to delete all data
-    % at or below the seafloor
-    [bott_sv, ~, bott_ind] = find_bottom_AM(sv, depth); %June 2025: Andréa updated
-    sv_nb = remove_bottom_AM(sv, bott_sv, bott_ind); %with new code
-    % finally, reinsert the data with the seafloor removed into the
-    % original Output file
-    % azfpData(k).Sv(dives(j).Index(1):dives(j).Index(2),:) = sv_nb';
-    azfpData(k).Sv = sv_nb';
-    %end
+nF = length(azfpData);
+nPing = size(azfpData(1).Sv, 1);
+
+%% 1. onset per ping and frequency
+onset = NaN(nF, nPing);
+for k = 1:nF
+    dep = azfpData(k).Depth;                       % pings x samples
+    hit = azfpData(k).Sv >= thr & dep > minDep;    % NaN/-Inf -> false
+    [anyHit, first] = max(hit, [], 2);
+    rows = find(anyHit);
+    onset(k, rows) = dep(sub2ind(size(dep), rows, first(rows)));
+end
+
+%% 2. smoothed seafloor depth
+zRaw = min(onset, [], 1, 'omitnan');
+zSea = movmedian(zRaw, smoothP, 'omitnan');
+hasDet = movsum(~isnan(zRaw), smoothP) > 0;
+zSea(~hasDet) = NaN;
+azfpData(1).SeafloorDepth = zSea(:);
+
+%% 3. remove
+nRemoved = zeros(nF, 1); nOwn = zeros(nF, 1); nOdd = zeros(nF, 1);
+for k = 1:nF
+    cutDep = zSea;
+    own = onset(k, :);
+    useOwn = ~isnan(own) & (isnan(zSea) | abs(own - zSea) <= maxJump);
+    cutDep(useOwn) = own(useOwn);
+    nOwn(k) = sum(useOwn);
+    nOdd(k) = sum(~isnan(own) & ~useOwn);
+    cut = azfpData(k).Depth >= (cutDep(:) - margin);   % NaN -> false
+    nRemoved(k) = sum(cut(:) & ~isnan(azfpData(k).Sv(:)));
+    azfpData(k).Sv(cut) = NaN;
 end
 toc
-
-%% Remove residual echoes
-
-for k = 1:length(azfpData)
-    sv_data = azfpData(k).Sv';
-    depth_data = azfpData(k).Depth';
-
-    % Frequency-specific parameters
-    switch k
-        case 4 % 769 kHz needs different handling
-            depth_range = [50, 98]; % Detection zone (m)
-            buffer = 16; % Bins above peak to keep
-        otherwise
-            depth_range = [50, 98];
-            buffer = 10;
-    end
-
-    % Create ping-level mask only for dives 1–227
-    dive_mask = false(1, size(sv_data, 2));
-    for d = 1:length(dives)
-        idx = dives(d).Index;
-
-        if isnumeric(idx) && numel(idx) == 2
-            ping_start = idx(1);
-            ping_end = idx(2);
-        elseif isstruct(idx) && isfield(idx, 'StartPing') && isfield(idx, 'EndPing')
-            ping_start = idx.StartPing(1);
-            ping_end = idx.EndPing(1);
-        else
-            continue
-        end
-
-        % Apply bounds check
-        ping_end = min(ping_end, size(sv_data, 2));
-        dive_mask(ping_start:ping_end) = true;
-    end
-
-    for ping = find(dive_mask)
-        sv_col = sv_data(:, ping);
-        depth_col = depth_data(:, ping);
-
-        if all(isnan(sv_col)) || max(depth_col) < depth_range(1)
-            continue
-        end
-
-        % --- STAGE 1: Peak detection within target range ---
-        zone_mask = depth_col > depth_range(1) & depth_col < depth_range(2);
-        [~, peak_idx] = max(sv_col.*zone_mask);
-
-        % --- STAGE 2: Masking logic ---
-        if ~isnan(peak_idx) && sv_col(peak_idx) > -70
-            cutoff = min(length(sv_col), peak_idx+buffer);
-            sv_col(peak_idx:cutoff) = NaN;
-            sv_col(cutoff+1:end) = NaN;
-        elseif max(depth_col) > 105
-            sv_col(depth_col > 105) = NaN;
-        end
-
-        sv_data(:, ping) = sv_col;
-    end
-
-    azfpData(k).Sv = sv_data';
-end
-
+fprintf(' Seafloor depth known for %.0f %% of pings (median %.1f m).\n', 100 * mean(~isnan(zSea)), median(zSea, 'omitnan'));
+fprintf(' Pings with own seafloor onset used: %s; strong echoes > %g m from the seafloor ignored (fish?): %s\n', ...
+    mat2str(nOwn'), maxJump, mat2str(nOdd'));
+fprintf(' Samples removed: %s per frequency\n', mat2str(nRemoved'));
 
 output = azfpData;
+end
+
+function v = getOpt(config, name, default)
+v = default;
+if isfield(config, name) && ~isempty(config.(name))
+    v = config.(name);
+end
 end

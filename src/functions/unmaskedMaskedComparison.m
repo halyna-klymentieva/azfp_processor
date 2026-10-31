@@ -55,6 +55,30 @@ for i = 1:length(dives) % for each dive
     end
 end
 
+% Krill check (config.krillCheck, dB; [] = off): for the 455 and 769 kHz masks,
+% samples whose 200-130 kHz difference is known and <= krillCheck are rejected.
+% Calanus give 200-130 = 5.1-6.6 dB (GSL model); krill and other large
+% scatterers give ~0 dB (flat frequency response; McQuinn et al. 2013).
+% Where 200-130 is unknown (no 130 or 200 kHz data) the sample is kept.
+krillCheck = [];
+if isfield(config, 'krillCheck')
+    krillCheck = config.krillCheck;
+end
+if ~isempty(krillCheck)
+    nPass = zeros(1, 2); nRej = zeros(1, 2);
+    for i = 1:length(dives)
+        notKrill = ~(dives(i).P(1).Diff <= krillCheck);   % NaN -> kept
+        for j = 2:3
+            m = dives(i).P(j).mask;
+            nPass(j-1) = nPass(j-1) + sum(m(:));
+            nRej(j-1) = nRej(j-1) + sum(m(:) & ~notKrill(:));
+            dives(i).P(j).mask = m & notKrill;
+        end
+    end
+    fprintf('Krill check (200-130 kHz <= %g dB): rejected %s %% of the samples passing the 455 / 769 kHz windows\n', ...
+        krillCheck, mat2str(round(100 * nRej ./ max(nPass, 1), 1)));
+end
+
 % Then multiply masking matrix by Sv to get masked observed Sv
 
 for i = 1:length(dives)

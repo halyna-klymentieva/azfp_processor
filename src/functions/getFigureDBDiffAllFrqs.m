@@ -33,5 +33,5 @@ else
 end
 figure2Path = fullfile(pwd, '..', 'output', figure2FileName);
 drawnow
-print(fig, '-dpng', figure2Path, '-r0')
+saveFigurePNG(fig, figure2Path, '-r0')
 end

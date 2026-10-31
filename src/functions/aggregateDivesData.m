@@ -5,6 +5,12 @@ function [Dives, bottomDepth] = aggregateDivesData(Output, config)
 % Step 6: Organized Dive Structure (Stable Version)- Halyna's version
 [azfpAggregateData, Dives] = aggregateVerticalResolution(Output, config.maxDepth);
 
+%% Remove the near-surface depth bins (config.surfaceExclusion, in m)
+Dives = applySurfaceExclusion(Dives, config);
+
+%% Remove isolated strong bins (fish, bubbles, noise spikes) - filterSpikes.m
+Dives = filterSpikes(Dives, config);
+
 %% Moving average to determine noise floor for each bin (Steps 3 and 4) and noise removal
 Dives = filterNoiseFloor(config.maxDepth, Output, azfpAggregateData, Dives, config);
 %% AZFP_Unmasked_Masked_Comparison routine (D. Mossman) - lines 626–750

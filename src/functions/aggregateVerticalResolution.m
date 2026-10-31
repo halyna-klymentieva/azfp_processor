@@ -13,10 +13,16 @@ for ii = 1:length(azfpData) % for each frequency
     for pp = 1:size(azfpData(ii).Depth, 1) % for each ping
         Xw = 10.^(azfpData(ii).Sv(pp, :) ./ 10); % data
         id = round(azfpData(ii).Depth(pp, :)); % index
-        idx = unique(id);
-        mn = accumarray(id', Xw', [], @mean);
-        mn(mn == 0) = [];
-        P(ii).avg_sv(pp, idx) = mn;
+        % mean of the samples in each 1 m depth bin, ignoring NaN samples
+        % (cut edges); samples with 0 (below the SNR threshold) count as 0.
+        % (Previously: accumarray(@mean) then mn(mn == 0) = [] to drop empty
+        % bins - wrong once a bin mean can be 0, and any NaN sample made the
+        % whole bin NaN.)
+        ok = ~isnan(Xw) & id > 0 & id <= maxDepth;
+        s = accumarray(id(ok)', Xw(ok)', [maxDepth, 1]);
+        c = accumarray(id(ok)', 1, [maxDepth, 1]);
+        idx = find(c > 0);
+        P(ii).avg_sv(pp, idx) = s(idx) ./ c(idx);
         clear id idx mm Xw
         if (mod(pp,10000) == 0) 
             fprintf('*');

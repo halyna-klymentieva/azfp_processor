@@ -70,5 +70,5 @@ else
 end
 figure2Path = fullfile(pwd, '..', 'output', figure2FileName);
 drawnow
-print(figH, '-dpng', figure2Path, '-r0')
+saveFigurePNG(figH, figure2Path, '-r0')
 end

@@ -42,5 +42,5 @@ else
 end
 figure1MedianSVPath = fullfile(pwd, '..', 'output', figure1MedianSVFileName);
 drawnow
-print(fig, '-dpng', figure1MedianSVPath, '-r0')
+saveFigurePNG(fig, figure1MedianSVPath, '-r0')
 end

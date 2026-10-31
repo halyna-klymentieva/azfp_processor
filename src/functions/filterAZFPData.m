@@ -12,6 +12,13 @@ Output = standardSphereCallibration(config.calibrationOffsets, Output);
 %% Trim Transmit Pulse and Near Field from Sv data (Step 5 in tutorial)
 Output = filterNearField(Output);
 
+%% Range-dependent noise subtraction + SNR threshold (config.noiseMethod = 'range')
+% Done on single samples, before the far-field cut (long ranges = noise only)
+% and before the CTD sound correction. See filterRangeNoise.m.
+if isfield(config, 'noiseMethod') && strcmpi(config.noiseMethod, 'range')
+    Output = filterRangeNoise(Output, config);
+end
+
 %% Load in glider data
 [gliderDepth, gliderTime, ~] = loadGliderData(config.gliderFileFullName, config.gliderVariableName);
 
@@ -43,7 +50,7 @@ end
 % getFigureSeafloorDecibelStrength(Output)
 
 %% Remove seafloor echoes (Step 1 in the tutorial)
-Output = filterSeafloorEchoes(Output, Dives);
+Output = filterSeafloorEchoes(Output, Dives, config);
 %% Remove surface noise
 if isfield(config, 'surfaceNoiseBand') && numel(config.surfaceNoiseBand) == 2
     Output = filterSurfaceNoise(Output, Dives, config.surfaceNoiseBand(1), config.surfaceNoiseBand(2));

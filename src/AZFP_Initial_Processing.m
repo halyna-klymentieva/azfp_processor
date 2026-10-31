@@ -42,18 +42,55 @@ config.farFieldCutOffRange = [30, 10, 10, 5];
 % band is visible in the 2025 data, and the old step only ran from dive 95.
 % To use it again, set e.g. [10 14] (depth range in m, applied to all pings).
 config.surfaceNoiseBand = [];
-% After noise-floor subtraction, samples less than this many dB above the
-% noise floor are set to 0 (no detectable backscatter). [] = only samples
-% below the noise floor. (De Robertis & Higginbottom 2007 use ~10 dB.)
-config.snrThreshold = [];
+% Noise removal:
+%  'range'    = range-dependent noise (De Robertis & Higginbottom 2007), per
+%               sample, before the far-field cut (filterRangeNoise.m). Noise
+%               level re-estimated every noiseBlockPings pings, smoothed over
+%               noiseSmoothBlocks blocks. Samples < snrThreshold dB above the
+%               noise -> 0. Needs the data-*.mat caches to be rebuilt.
+%  'constant' = original: one noise floor per frequency and day, subtracted
+%               from the 1 m bins (filterNoiseFloor.m).
+config.noiseMethod = 'range';
+config.noiseBlockPings = 20;
+config.noiseSmoothBlocks = 11;
+% Samples less than this many dB above the noise are treated as no detectable
+% backscatter. 10 dB = De Robertis & Higginbottom 2007, McLennan et al. 2025.
+% (With 'constant': [] = only samples below the noise floor.)
+config.snrThreshold = 10;
 % What samples below the noise floor (or SNR threshold) become: 0 or NaN
-config.belowNoiseValue = NaN;
+config.belowNoiseValue = 0;
 % 1 = samples outside the copepod dB-difference windows count as 0
 % (density per m^3 of water); 0 = left out as NaN (original behaviour)
 config.maskedOutAsZero = 0;
+% Krill check for the 455 and 769 kHz masks (unmaskedMaskedComparison.m): reject
+% samples whose 200-130 kHz difference is <= krillCheck dB (Calanus 5.1-6.6 dB,
+% krill ~0 dB; McQuinn et al. 2013). [] = off.
+config.krillCheck = 3;
 % Per-depth dive profiles (Sv, masked Sv, density): 'median' (original) or
 % 'mean'. With the zeros above, medians are often 0; 'mean' = average per m^3.
 config.profileStatistic = 'median';
+% Near-surface exclusion: 1 m depth bins 1..N (m) are set to NaN in every dive
+% (bubbles / glider at the surface; spikes fade by ~6 m). 5 = keep data deeper
+% than 5.5 m. [] = keep everything.
+config.surfaceExclusion = 5;
+% Seafloor (filterSeafloorEchoes.m): onset = shallowest sample deeper than
+% seafloorMinDepth with Sv >= seafloorThreshold (dB); seafloor depth per ping =
+% shallowest onset of the 4 frequencies, moving median over seafloorSmoothPings
+% pings; each frequency is cut at its own onset (if within seafloorMaxJump m of
+% that depth, else at that depth) minus seafloorMargin m.
+config.seafloorThreshold = -35;
+config.seafloorMinDepth = 45;
+config.seafloorMargin = 0.5;
+config.seafloorSmoothPings = 101;
+config.seafloorMaxJump = 3;
+% Spike removal on the 1 m bins (filterSpikes.m): bins > spikeThreshold dB above
+% the median of spikeWindowPings x spikeWindowDepth neighbours (median floored at
+% spikeFloorDb), or with Sv > spikeCeilingDb, become NaN. spikeThreshold = [] = off.
+config.spikeThreshold = 15;
+config.spikeWindowPings = 11;
+config.spikeWindowDepth = 3;
+config.spikeFloorDb = -75;
+config.spikeCeilingDb = -40;
 config.maxDepth = 105;
 % Colour scale (dB) for the Sv figures (median Sv and masked Sv)
 config.svLimits = [-100, -50];
